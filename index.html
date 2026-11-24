@@ -134,7 +134,7 @@
                             <p id="torpedo-val" class="text-[11px] sm:text-base font-black text-[#ff3333]">0</p>
                         </div>
                         <div class="h-6 w-[1px] bg-[#ff8800]/35 shrink-0"></div>
-                        <div class="text-center min-w-[30px] sm:min-w-[38px] shrink-0">
+                        <div class="text-center min-w-[28px] sm:min-w-[38px] shrink-0">
                             <p class="lcars-font text-[8px] sm:text-xs font-bold text-[#38bdf8] uppercase">MULT</p>
                             <p id="combo-val" class="text-[11px] sm:text-base font-black text-[#38bdf8]">1X</p>
                             <div class="w-full bg-[#101c26] h-1 rounded-full overflow-hidden mt-0.5">
@@ -148,15 +148,12 @@
                         </div>
                     </div>
 
-                    <!-- Warp Status & Audio Toggle -->
-                    <div class="col-span-3 lcars-glass px-1.5 sm:px-2 py-1.5 rounded-lg flex flex-col sm:flex-row items-end sm:items-center justify-center sm:justify-between border-r-4 border-r-[#ff8800] gap-0.5 sm:gap-1">
-                        <button id="mute-btn" type="button" title="Toggle LCARS Audio" class="pointer-events-auto px-1.5 py-0.5 sm:py-1 rounded bg-[#24180c] hover:bg-[#3a2614] border border-[#ff8800]/50 text-[#ffaa00] text-[8px] sm:text-[10px] font-bold cursor-pointer active:scale-95 shrink-0">
+                    <!-- Stacked SFX Toggle & Warp Status (No clipping on narrow screens) -->
+                    <div class="col-span-3 lcars-glass px-1.5 py-1 rounded-lg flex flex-col items-end justify-center border-r-4 border-r-[#ff8800] gap-0.5 overflow-hidden">
+                        <button id="mute-btn" type="button" title="Toggle LCARS Audio" class="pointer-events-auto px-1.5 py-0.5 rounded bg-[#24180c] hover:bg-[#3a2614] border border-[#ff8800]/50 text-[#ffaa00] text-[8px] sm:text-[9px] font-bold cursor-pointer active:scale-95 leading-none">
                             SFX ON
                         </button>
-                        <div class="flex flex-col justify-center text-right overflow-hidden max-w-full">
-                            <p id="warp-title" class="lcars-font text-[8px] sm:text-xs font-bold text-[#ffcc66] uppercase hidden sm:block">WARP</p>
-                            <p id="warp-val" class="text-[8px] sm:text-xs font-black text-[#ffaa00] truncate">ENGAGED</p>
-                        </div>
+                        <p id="warp-val" class="text-[8px] sm:text-[10px] font-black text-[#ffaa00] truncate max-w-full leading-tight">ENGAGED</p>
                     </div>
                 </div>
 
@@ -218,19 +215,19 @@
         </div>
 
         <!-- Bottom Action Controls & Notifications -->
-        <div class="flex flex-col items-center pb-10 sm:pb-6 pointer-events-auto gap-2 touch-none">
+        <div class="flex flex-col items-center pb-10 sm:pb-6 pointer-events-auto gap-1.5 touch-none max-w-full">
             <div class="flex justify-center items-center gap-2.5 sm:gap-3 touch-none">
                 <span class="hidden sm:inline-block w-7 h-9 bg-[#ff8800] rounded-l-full"></span>
-                <button id="fire-btn" type="button" class="touch-none px-5 sm:px-6 py-3 bg-[#ffaa00] hover:bg-[#ffcc66] text-black font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ffcc66] shadow-[0_0_18px_rgba(255,170,0,0.45)] cursor-pointer active:scale-95 transition-transform uppercase">
+                <button id="fire-btn" type="button" class="touch-none px-4 sm:px-6 py-3 bg-[#ffaa00] hover:bg-[#ffcc66] text-black font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ffcc66] shadow-[0_0_18px_rgba(255,170,0,0.45)] cursor-pointer active:scale-95 transition-transform uppercase">
                     FIRE PHASERS
                 </button>
-                <button id="torpedo-btn" type="button" class="touch-none opacity-40 px-5 sm:px-6 py-3 bg-[#3a1612] text-[#ff8877] font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ff5544]/40 cursor-pointer active:scale-95 transition-all uppercase">
+                <button id="torpedo-btn" type="button" class="touch-none opacity-40 px-4 sm:px-6 py-3 bg-[#3a1612] text-[#ff8877] font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ff5544]/40 cursor-pointer active:scale-95 transition-all uppercase">
                     TORPEDO (0)
                 </button>
                 <span class="hidden sm:inline-block w-7 h-9 bg-[#ffcc66] rounded-r-full"></span>
             </div>
-            <p class="text-[#ffcc66]/80 text-[8px] sm:text-[10px] tracking-widest text-center bg-black/70 px-3 py-0.5 rounded-full border border-[#ff8800]/30">
-                TWO-FINGER TOUCH: DRAG SCREEN TO STEER, TAP BUTTONS TO FIRE
+            <p class="text-[#ffcc66]/80 text-[8px] sm:text-[10px] tracking-wider text-center bg-black/75 px-3 py-0.5 rounded-full border border-[#ff8800]/30 max-w-[95vw] truncate">
+                DRAG SCREEN TO STEER &bull; TAP TO FIRE
             </p>
         </div>
     </div>
@@ -305,7 +302,7 @@
             'use strict';
 
             // --- PERSISTENT STARFLEET SERVICE RECORD (META-PROGRESSION) ---
-            const STORAGE_KEY = 'starship_cruiser_lcars_v5';
+            const STORAGE_KEY = 'starship_cruiser_lcars_v6';
             let careerStats = {
                 highScore: 0,
                 bestSector: 1,
@@ -473,7 +470,7 @@
             muteBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 soundMuted = !soundMuted;
-                muteBtnEl.innerText = soundMuted ? 'MUTED' : 'SFX ON';
+                muteBtnEl.innerText = soundMuted ? 'SFX OFF' : 'SFX ON';
                 muteBtnEl.classList.toggle('text-[#ff5544]', soundMuted);
                 muteBtnEl.classList.toggle('text-[#ffaa00]', !soundMuted);
                 if (!soundMuted) initAudio();
@@ -484,7 +481,7 @@
             const container = document.getElementById('canvas-container');
             const calloutsLayer = document.getElementById('callouts-layer');
             const scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x030205, 0.013);
+            scene.fog = new THREE.FogExp2(0x030205, 0.011);
 
             const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
             const baseCamPos = new THREE.Vector3(0, 2.0, 9.5);
@@ -497,22 +494,22 @@
             container.appendChild(renderer.domElement);
 
             // Lighting for detailed crater relief & warm LCARS rim highlights
-            const ambientLight = new THREE.AmbientLight(0xd8dde6, 0.9);
+            const ambientLight = new THREE.AmbientLight(0xd8dde6, 0.92);
             scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xfff4e0, 1.3);
+            const directionalLight = new THREE.DirectionalLight(0xfff4e0, 1.35);
             directionalLight.position.set(7, 11, 9);
             scene.add(directionalLight);
-            const rimLight = new THREE.DirectionalLight(0xff8833, 0.45);
+            const rimLight = new THREE.DirectionalLight(0xff8833, 0.5);
             rimLight.position.set(-9, -5, -8);
             scene.add(rimLight);
 
-            // --- VOLUMETRIC SECTOR NEBULA CLOUDS ---
+            // --- VOLUMETRIC SECTOR NEBULA CLOUDS (Normal blending, low opacity so screen never whiteouts) ---
             const nebulaThemes = [
-                { fog: 0x040307, tintA: 'rgba(255, 136, 0, 0.08)', tintB: 'rgba(180, 50, 30, 0.05)' },
-                { fog: 0x07020a, tintA: 'rgba(220, 38, 90, 0.09)', tintB: 'rgba(124, 58, 237, 0.06)' },
-                { fog: 0x02070a, tintA: 'rgba(14, 165, 233, 0.09)', tintB: 'rgba(16, 185, 129, 0.06)' },
-                { fog: 0x080402, tintA: 'rgba(245, 158, 11, 0.09)', tintB: 'rgba(220, 38, 38, 0.07)' },
-                { fog: 0x050208, tintA: 'rgba(168, 85, 247, 0.10)', tintB: 'rgba(239, 68, 68, 0.07)' }
+                { fog: 0x040307, tintA: 'rgba(255, 136, 0, 0.07)', tintB: 'rgba(180, 50, 30, 0.05)' },
+                { fog: 0x07020a, tintA: 'rgba(220, 38, 90, 0.08)', tintB: 'rgba(124, 58, 237, 0.05)' },
+                { fog: 0x02070a, tintA: 'rgba(14, 165, 233, 0.08)', tintB: 'rgba(16, 185, 129, 0.05)' },
+                { fog: 0x080402, tintA: 'rgba(245, 158, 11, 0.08)', tintB: 'rgba(220, 38, 38, 0.06)' },
+                { fog: 0x050208, tintA: 'rgba(168, 85, 247, 0.09)', tintB: 'rgba(239, 68, 68, 0.06)' }
             ];
 
             function createNebulaSpriteTexture(colorA, colorB) {
@@ -546,19 +543,19 @@
                     const mat = new THREE.SpriteMaterial({
                         map: tex,
                         transparent: true,
-                        opacity: 0.28 + Math.random() * 0.14,
+                        opacity: 0.14,
                         blending: THREE.NormalBlending,
                         depthWrite: false
                     });
                     const sprite = new THREE.Sprite(mat);
                     const angle = (i / 8) * Math.PI * 2;
-                    const radius = 22 + Math.random() * 20;
+                    const radius = 24 + Math.random() * 18;
                     sprite.position.set(
                         Math.cos(angle) * radius,
                         Math.sin(angle) * (radius * 0.65),
-                        -70 - i * 24
+                        -75 - i * 24
                     );
-                    const scale = 28 + Math.random() * 18;
+                    const scale = 26 + Math.random() * 16;
                     sprite.scale.set(scale, scale, 1);
                     nebulaGroup.add(sprite);
                     nebulaSprites.push(sprite);
@@ -566,7 +563,7 @@
             }
             rebuildSectorNebula(1);
 
-            // --- PROCEDURAL STARSHIP & ENEMY VECTOR FALLBACK TEXTURES ---
+            // --- PROCEDURAL STARSHIP & ENEMY FALLBACK TEXTURES ---
             function createFallbackCruiserTexture(pitchOffset = 0) {
                 const c = document.createElement('canvas');
                 c.width = 512; c.height = 220;
@@ -746,6 +743,7 @@
             }
 
             const playerGroup = new THREE.Group();
+            playerGroup.visible = true;
             scene.add(playerGroup);
 
             let centerTexture = createFallbackCruiserTexture(0);
@@ -802,9 +800,12 @@
             const shipGeo = new THREE.PlaneGeometry(2.6, 1.1);
             const material1 = new THREE.MeshBasicMaterial({ map: centerTexture, transparent: true, opacity: 1.0, side: THREE.DoubleSide });
             const material2 = new THREE.MeshBasicMaterial({ map: centerTexture, transparent: true, opacity: 0.0, side: THREE.DoubleSide });
-            playerGroup.add(new THREE.Mesh(shipGeo, material1));
+            const shipMesh1 = new THREE.Mesh(shipGeo, material1);
+            shipMesh1.visible = true;
+            playerGroup.add(shipMesh1);
             const m2 = new THREE.Mesh(shipGeo, material2);
             m2.position.z = 0.001;
+            m2.visible = true;
             playerGroup.add(m2);
 
             // Glowing Warp Nacelle Thruster Plumes
@@ -822,7 +823,7 @@
             rightThruster.position.set(0.74, 0.14, 0.35);
             playerGroup.add(leftThruster, rightThruster);
 
-            // Subtle Tractor Beam Halo Ring around ship when magnet is active
+            // Tractor Beam Halo Ring around ship when magnet is active
             const tractorRingGeo = new THREE.RingGeometry(0.95, 1.06, 32);
             const tractorRingMat = new THREE.MeshBasicMaterial({
                 color: 0xc084fc,
@@ -961,6 +962,7 @@
                     scale * (0.86 + Math.random() * 0.28)
                 );
                 mesh.rotation.set(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
+                mesh.visible = true;
                 return mesh;
             }
 
@@ -1031,7 +1033,7 @@
             }
             const shieldStreamGeo = new THREE.BufferGeometry();
             shieldStreamGeo.setAttribute('position', new THREE.BufferAttribute(streamPositions, 3));
-            const streamMat = new THREE.LineBasicMaterial({ color: 0xffaa00, linewidth: 2, transparent: true, opacity: 0.26 });
+            const streamMat = new THREE.LineBasicMaterial({ color: 0xffaa00, linewidth: 2, transparent: true, opacity: 0.28 });
             const shieldStream = new THREE.Line(shieldStreamGeo, streamMat);
             scene.add(shieldStream);
 
@@ -1057,8 +1059,8 @@
             let damageCooldown = 0;
             let meteorSpawnAccumulator = 0;
             let outerSpawnAccumulator = 0;
-            let interceptorSpawnTimer = 320;
-            let nextInterceptorInterval = 740;
+            let interceptorSpawnTimer = 340;
+            let nextInterceptorInterval = 780;
 
             const fireBtnEl = document.getElementById('fire-btn');
             const torpedoBtnEl = document.getElementById('torpedo-btn');
@@ -1110,9 +1112,9 @@
                 document.getElementById('torpedo-val').innerText = photonTorpedoes;
                 torpedoBtnEl.innerText = `TORPEDO (${photonTorpedoes})`;
                 if (photonTorpedoes > 0) {
-                    torpedoBtnEl.className = "touch-none px-5 sm:px-6 py-3 bg-[#ff3333] hover:bg-[#ff5544] text-white font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ffaa00] shadow-[0_0_20px_rgba(255,51,51,0.65)] cursor-pointer active:scale-95 transition-all uppercase";
+                    torpedoBtnEl.className = "touch-none px-4 sm:px-6 py-3 bg-[#ff3333] hover:bg-[#ff5544] text-white font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ffaa00] shadow-[0_0_20px_rgba(255,51,51,0.65)] cursor-pointer active:scale-95 transition-all uppercase";
                 } else {
-                    torpedoBtnEl.className = "touch-none opacity-40 px-5 sm:px-6 py-3 bg-[#3a1612] text-[#ff8877] font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ff5544]/40 cursor-pointer active:scale-95 transition-all uppercase";
+                    torpedoBtnEl.className = "touch-none opacity-40 px-4 sm:px-6 py-3 bg-[#3a1612] text-[#ff8877] font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ff5544]/40 cursor-pointer active:scale-95 transition-all uppercase";
                 }
             }
 
@@ -1133,6 +1135,7 @@
                 const count = Math.min(18, Math.floor(7 + size * 8));
                 const group = new THREE.Group();
                 group.position.copy(position);
+                group.visible = true;
 
                 for (let i = 0; i < count; i++) {
                     const isSpark = i % 2 === 0 || isFiery;
@@ -1257,6 +1260,7 @@
                     if (isOverdrive && idx !== 1) {
                         laser.userData.vx = offsetX * 0.04;
                     }
+                    laser.visible = true;
                     scene.add(laser);
                     lasers.push(laser);
                 });
@@ -1279,6 +1283,7 @@
                 torpGroup.add(new THREE.Mesh(coreGeo, coreMat));
                 torpGroup.add(new THREE.Mesh(haloGeo, haloMat));
                 torpGroup.position.set(playerGroup.position.x, playerGroup.position.y, playerGroup.position.z - 1.1);
+                torpGroup.visible = true;
                 scene.add(torpGroup);
                 photonProjectiles.push(torpGroup);
             }
@@ -1326,6 +1331,7 @@
                     bolt.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
                     bolt.position.copy(muzzle).addScaledVector(direction, 1.1);
                     bolt.userData.velocity = direction.multiplyScalar(isEnraged ? 0.65 : 0.58);
+                    bolt.visible = true;
                     scene.add(bolt);
                     enemyLasers.push(bolt);
                 });
@@ -1512,6 +1518,7 @@
                 } else {
                     pickupGroup.position.set((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3, -120);
                 }
+                pickupGroup.visible = true;
                 pickupGroup.userData = { type, ringMesh };
 
                 scene.add(pickupGroup);
@@ -1519,13 +1526,14 @@
             }
             setInterval(() => spawnTorpedoPickup(), 4400);
 
-            // --- SMALL ROGUE CRUISER INTERCEPTOR (Attack Strafing Run) ---
+            // --- SMALL ROGUE CRUISER INTERCEPTOR (Slower Approach for Reaction Time) ---
             function spawnRogueInterceptor() {
                 if (!gameActive || bossActive || jumpToWarpTimer > 0 || missionProgress > 92) return;
                 if (rogueInterceptors.length >= 2) return;
 
-                const scale = 0.58 + Math.random() * 0.07;
+                const scale = 0.62 + Math.random() * 0.06;
                 const interceptorGroup = new THREE.Group();
+                interceptorGroup.visible = true;
 
                 const hullGeo = new THREE.PlaneGeometry(2.6, 1.1);
                 const hullMat = new THREE.MeshBasicMaterial({
@@ -1536,6 +1544,7 @@
                     side: THREE.DoubleSide
                 });
                 const hullMesh = new THREE.Mesh(hullGeo, hullMat);
+                hullMesh.visible = true;
                 interceptorGroup.add(hullMesh);
 
                 // Glowing crimson hostile warp nacelle caps
@@ -1564,17 +1573,17 @@
                 reticleMesh.position.z = -0.02;
                 interceptorGroup.add(reticleMesh);
 
-                const startX = (Math.random() < 0.5 ? -1 : 1) * (1.8 + Math.random() * 1.4);
-                const startY = (Math.random() - 0.5) * 2.6;
-                const startZ = -135;
+                const startX = (Math.random() < 0.5 ? -1 : 1) * (1.6 + Math.random() * 1.2);
+                const startY = (Math.random() - 0.5) * 2.2;
+                const startZ = -125;
 
                 interceptorGroup.position.set(startX, startY, startZ);
                 interceptorGroup.scale.set(scale, scale, scale);
 
-                // Aim intercept trajectory toward player's flight lane
-                const aimX = THREE.MathUtils.clamp(playerGroup.position.x + (Math.random() - 0.5) * 1.2, -2.6, 2.6);
-                const aimY = THREE.MathUtils.clamp(playerGroup.position.y + (Math.random() - 0.5) * 0.9, -1.5, 1.5);
-                const forwardSpeed = 0.92 + Math.min(0.32, sectorCount * 0.04);
+                // Deliberately slower forward speed (0.36 to 0.48 units/frame) so the player can line up phasers or torpedoes
+                const aimX = THREE.MathUtils.clamp(playerGroup.position.x + (Math.random() - 0.5) * 1.0, -2.5, 2.5);
+                const aimY = THREE.MathUtils.clamp(playerGroup.position.y + (Math.random() - 0.5) * 0.8, -1.4, 1.4);
+                const forwardSpeed = 0.36 + Math.min(0.12, sectorCount * 0.02);
                 const travelFrames = Math.abs(startZ) / forwardSpeed;
 
                 interceptorGroup.userData = {
@@ -1586,11 +1595,11 @@
                     vx: (aimX - startX) / travelFrames,
                     vy: (aimY - startY) / travelFrames,
                     weavePhase: Math.random() * Math.PI * 2,
-                    weaveAmpX: 0.022 + Math.random() * 0.012,
-                    weaveAmpY: 0.014 + Math.random() * 0.008,
+                    weaveAmpX: 0.014 + Math.random() * 0.008,
+                    weaveAmpY: 0.009 + Math.random() * 0.006,
                     shotsFired: 0,
                     maxShots: sectorCount >= 3 ? 2 : 1,
-                    nextFireZ: -86 + Math.random() * 14
+                    nextFireZ: -78 + Math.random() * 12
                 };
 
                 scene.add(interceptorGroup);
@@ -1601,7 +1610,7 @@
             }
 
             function fireInterceptorBolt(interceptor) {
-                playSound('enemy-laser', 1.25);
+                playSound('enemy-laser', 1.2);
                 const laserGeo = new THREE.CylinderGeometry(0.06, 0.09, 1.9, 8);
                 const laserMat = new THREE.MeshBasicMaterial({
                     color: 0xff3b2f,
@@ -1624,7 +1633,8 @@
                 const bolt = new THREE.Mesh(laserGeo, laserMat);
                 bolt.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
                 bolt.position.copy(muzzle).addScaledVector(direction, 0.95);
-                bolt.userData.velocity = direction.multiplyScalar(0.68);
+                bolt.userData.velocity = direction.multiplyScalar(0.56);
+                bolt.visible = true;
                 scene.add(bolt);
                 enemyLasers.push(bolt);
             }
@@ -1662,7 +1672,6 @@
                     hitRadiusX = 2.35 * widthMultiplier;
                     hitRadiusY = 2.35;
                 } else {
-                    // Rogue Starship Cruiser using the exact same ship images as the player!
                     baseWidth = 2.6;
                     baseHeight = 1.1;
                     baseColor = 0xffb3a6;
@@ -1676,7 +1685,6 @@
                     overlay.position.z = 0.002;
                     group.add(overlay);
 
-                    // Glowing red warp nacelle beacons to distinguish rogue cruisers visually
                     const podMat = new THREE.MeshBasicMaterial({ color: 0xff3322, transparent: true, opacity: 0.9 });
                     const podGeo = new THREE.SphereGeometry(0.1, 10, 10);
                     const leftPod = new THREE.Mesh(podGeo, podMat);
@@ -1690,8 +1698,9 @@
                     hitRadiusY = 0.72;
                 }
 
-                mesh.position.set(homeX * 0.45, homeY + 0.5, -105);
+                mesh.position.set(homeX * 0.45, homeY + 0.5, -95);
                 mesh.scale.set(1.0, 1.0, 1.0);
+                mesh.visible = true;
                 scene.add(mesh);
 
                 return {
@@ -1775,7 +1784,6 @@
                 document.getElementById('belt-status-pill').classList.add('lcars-blink');
 
                 if (sectorCount === 1) {
-                    // Battle 1: Striker-Class Scout
                     document.getElementById('boss-warning-text').innerText = "WARNING: OUT OF WARP - STRIKER-CLASS SCOUT APPROACHING";
                     document.getElementById('objective-title').innerText = "DESTROY STRIKER SCOUT";
                     bossShips.push(createBossVessel({
@@ -1791,7 +1799,6 @@
                         phaseOffset: 0
                     }));
                 } else if (sectorCount === 2) {
-                    // Battle 2: First Dreadnought Mothership (standard 1:1 width)
                     document.getElementById('boss-warning-text').innerText = "WARNING: OUT OF WARP - DREADNOUGHT MOTHERSHIP APPROACHING";
                     document.getElementById('objective-title').innerText = "DESTROY DREADNOUGHT";
                     bossShips.push(createBossVessel({
@@ -1808,7 +1815,6 @@
                         phaseOffset: 0
                     }));
                 } else if (sectorCount === 3) {
-                    // Battle 3: Two Rogue Cruiser ships side-by-side
                     document.getElementById('boss-warning-text').innerText = "RED ALERT: TWIN ROGUE CRUISERS INTERCEPTING";
                     document.getElementById('objective-title').innerText = "DEFEAT TWIN CRUISERS";
                     bossShips.push(
@@ -1838,7 +1844,6 @@
                         })
                     );
                 } else if (sectorCount === 4) {
-                    // Battle 4: Three Rogue Cruiser ships all firing
                     document.getElementById('boss-warning-text').innerText = "RED ALERT: THREE ROGUE CRUISERS ATTACKING";
                     document.getElementById('objective-title').innerText = "DEFEAT CRUISER SQUADRON";
                     bossShips.push(
@@ -1880,7 +1885,7 @@
                         })
                     );
                 } else if (sectorCount === 5) {
-                    // Battle 5: Heavy Assault Dreadnought Mothership (TWICE AS WIDE!)
+                    // Heavy Assault Dreadnought Mothership (TWICE AS WIDE as Sector 2, same height)
                     document.getElementById('boss-warning-text').innerText = "RED ALERT: HEAVY ASSAULT MOTHERSHIP ENGAGING";
                     document.getElementById('objective-title').innerText = "DESTROY HEAVY MOTHERSHIP";
                     bossShips.push(createBossVessel({
@@ -1897,7 +1902,7 @@
                         phaseOffset: 0
                     }));
                 } else {
-                    // Battle 6+: 2x-Wide Dreadnought Mothership flanked by Two Rogue Cruisers!
+                    // Sector 6+: 2x-Wide Dreadnought Mothership flanked by Two Rogue Cruisers
                     const scaleBonus = (sectorCount - 6) * 60;
                     document.getElementById('boss-warning-text').innerText = "RED ALERT: MOTHERSHIP & CRUISER ESCORTS ENGAGING";
                     document.getElementById('objective-title').innerText = "DESTROY MOTHERSHIP FLEET";
@@ -2064,6 +2069,7 @@
                         tractorRing.visible = false;
                     }
 
+                    playerGroup.visible = true;
                     playerGroup.position.x += (targetX - playerGroup.position.x) * 0.11;
                     playerGroup.position.y += (targetY - playerGroup.position.y) * 0.11;
                     playerGroup.rotation.z = (playerGroup.position.x - targetX) * -0.06;
@@ -2126,7 +2132,7 @@
                         interceptorSpawnTimer++;
                         if (interceptorSpawnTimer >= nextInterceptorInterval) {
                             interceptorSpawnTimer = 0;
-                            nextInterceptorInterval = Math.max(480, 740 - sectorCount * 35) + Math.floor(Math.random() * 240);
+                            nextInterceptorInterval = Math.max(540, 780 - sectorCount * 30) + Math.floor(Math.random() * 240);
                             spawnRogueInterceptor();
                         }
 
@@ -2187,11 +2193,12 @@
 
                             bossShips.forEach(shipObj => {
                                 const mesh = shipObj.mesh;
+                                mesh.visible = true;
                                 const prevY = mesh.position.y;
 
                                 if (mesh.position.z < shipObj.homeZ) {
-                                    mesh.position.z += 0.78;
-                                    const t = THREE.MathUtils.clamp((mesh.position.z - (-105)) / (shipObj.homeZ - (-105)), 0, 1);
+                                    mesh.position.z += 0.85;
+                                    const t = THREE.MathUtils.clamp((mesh.position.z - (-95)) / (shipObj.homeZ - (-95)), 0, 1);
                                     const currentScale = THREE.MathUtils.lerp(1.0, shipObj.targetScale, t);
                                     mesh.scale.set(currentScale, currentScale, currentScale);
                                     mesh.position.x = THREE.MathUtils.lerp(shipObj.homeX * 0.45, shipObj.homeX, t);
@@ -2422,7 +2429,7 @@
 
                             for (let rIdx = rogueInterceptors.length - 1; rIdx >= 0; rIdx--) {
                                 const raider = rogueInterceptors[rIdx];
-                                if (torp.position.distanceTo(raider.position) < 1.35) {
+                                if (torp.position.distanceTo(raider.position) < 1.45) {
                                     const blastCenter = torp.position.clone();
                                     const dropPos = raider.position.clone();
                                     playSound('explosion', 1.15);
@@ -2480,22 +2487,23 @@
                     if (!bossActive && jumpToWarpTimer <= 0) {
                         for (let i = rogueInterceptors.length - 1; i >= 0; i--) {
                             const raider = rogueInterceptors[i];
+                            raider.visible = true;
                             const ud = raider.userData;
 
-                            ud.weavePhase += 0.085;
+                            ud.weavePhase += 0.06;
                             const weaveDx = Math.cos(ud.weavePhase) * ud.weaveAmpX;
                             const weaveDy = Math.sin(ud.weavePhase * 1.3) * ud.weaveAmpY;
 
                             raider.position.z += ud.forwardSpeed;
-                            raider.position.x = THREE.MathUtils.clamp(raider.position.x + ud.vx + weaveDx, -3.4, 3.4);
-                            raider.position.y = THREE.MathUtils.clamp(raider.position.y + ud.vy + weaveDy, -2.0, 2.0);
-                            raider.rotation.z = (ud.vx + weaveDx) * -4.5;
-                            if (ud.reticleMesh) ud.reticleMesh.rotation.z -= 0.05;
+                            raider.position.x = THREE.MathUtils.clamp(raider.position.x + ud.vx + weaveDx, -3.2, 3.2);
+                            raider.position.y = THREE.MathUtils.clamp(raider.position.y + ud.vy + weaveDy, -1.8, 1.8);
+                            raider.rotation.z = (ud.vx + weaveDx) * -4.2;
+                            if (ud.reticleMesh) ud.reticleMesh.rotation.z -= 0.04;
 
                             if (ud.shotsFired < ud.maxShots && raider.position.z >= ud.nextFireZ && raider.position.z < -12) {
                                 fireInterceptorBolt(raider);
                                 ud.shotsFired++;
-                                ud.nextFireZ = raider.position.z + 24;
+                                ud.nextFireZ = raider.position.z + 28;
                             }
 
                             if (raider.position.distanceTo(playerGroup.position) < 1.15) {
@@ -2515,7 +2523,7 @@
 
                             let raiderDestroyed = false;
                             for (let j = lasers.length - 1; j >= 0; j--) {
-                                if (raider.position.distanceTo(lasers[j].position) < 1.05) {
+                                if (raider.position.distanceTo(lasers[j].position) < 1.15) {
                                     ud.hp -= 1;
                                     const hitPos = lasers[j].position.clone();
                                     scene.remove(lasers[j]);
@@ -2554,6 +2562,7 @@
 
                         for (let i = outerMeteors.length - 1; i >= 0; i--) {
                             const om = outerMeteors[i];
+                            om.visible = true;
                             om.position.z += (speed + 0.2) * om.userData.speedMult;
                             om.rotation.x += om.userData.rotSpeed.x;
                             om.rotation.y += om.userData.rotSpeed.y;
@@ -2566,6 +2575,7 @@
 
                         for (let i = meteors.length - 1; i >= 0; i--) {
                             const m = meteors[i];
+                            m.visible = true;
                             const ud = m.userData;
                             m.position.z += speed + ud.speedBonus;
                             m.position.x += ud.driftX;
@@ -2649,6 +2659,7 @@
                         const pickupRadius = magnetTimer > 0 ? 3.4 : 1.85;
                         for (let i = torpedoPickups.length - 1; i >= 0; i--) {
                             const tp = torpedoPickups[i];
+                            tp.visible = true;
                             tp.position.z += speed + 0.05;
                             tp.rotation.y += 0.035;
                             if (tp.userData.ringMesh) tp.userData.ringMesh.rotation.x += 0.06;
@@ -2717,8 +2728,8 @@
                 damageCooldown = 0;
                 meteorSpawnAccumulator = 0;
                 outerSpawnAccumulator = 0;
-                interceptorSpawnTimer = 320;
-                nextInterceptorInterval = 740;
+                interceptorSpawnTimer = 340;
+                nextInterceptorInterval = 780;
                 comboMultiplier = 1;
                 comboTimer = 0;
                 runMaxCombo = 1;
@@ -2743,6 +2754,7 @@
                 enemyLasers.forEach(bl => scene.remove(bl)); enemyLasers = [];
                 targetX = 0; targetY = 0;
                 playerGroup.position.set(0, 0, 0);
+                playerGroup.visible = true;
                 shieldStream.visible = true;
                 tractorRing.visible = false;
                 updateShieldHUD();
@@ -2819,7 +2831,6 @@
                 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             });
 
-            // Start the render loop immediately
             animate();
         })();
     </script>
