@@ -1,0 +1,1699 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Starship Cruiser</title>
+    <!-- Custom Starship Cruiser icon in browser navigation bar -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><path d=%22M50 10 C30 25 15 45 25 65 C30 75 45 85 50 90 C55 85 70 75 75 65 C85 45 70 25 50 10 Z%22 fill=%22%23ff9900%22 stroke=%22%23ffcc66%22 stroke-width=%223%22/><circle cx=%2250%22 cy=%2235%22 r=%2212%22 fill=%22%23ff3333%22/></svg>">
+    <!-- Tailwind CSS for Modern HUD -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts: Antonio (LCARS Headers) & Orbitron (Tactical Telemetry) -->
+    <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            background: #000;
+            margin: 0;
+            user-select: none;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+        }
+        .lcars-font {
+            font-family: 'Antonio', 'Orbitron', sans-serif;
+            letter-spacing: 0.08em;
+        }
+        .lcars-glass {
+            background: rgba(14, 10, 6, 0.88);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 153, 0, 0.45);
+            box-shadow: 0 0 20px rgba(255, 136, 0, 0.2);
+        }
+        .lcars-elbow-tl {
+            border-top-left-radius: 22px;
+            border-bottom-left-radius: 8px;
+        }
+        .lcars-elbow-tr {
+            border-top-right-radius: 22px;
+            border-bottom-right-radius: 8px;
+        }
+        @keyframes lcarsAlertBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.45; }
+        }
+        .lcars-blink {
+            animation: lcarsAlertBlink 0.9s infinite ease-in-out;
+        }
+        #damage-flash {
+            pointer-events: none;
+            box-shadow: inset 0 0 65px rgba(255, 34, 34, 0.85), inset 0 0 22px rgba(255, 136, 0, 0.65);
+            opacity: 0;
+            transition: opacity 0.14s ease-out;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden">
+
+    <!-- Three.js Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 z-0 overflow-hidden touch-none"></div>
+
+    <!-- Red-Alert Shield Impact Vignette -->
+    <div id="damage-flash" class="absolute inset-0 z-15"></div>
+
+    <!-- LCARS HUD Overlay -->
+    <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-2.5 sm:p-4 max-w-full overflow-hidden box-border">
+        <!-- Top LCARS Segmented Frame -->
+        <div class="flex flex-col w-full max-w-4xl mx-auto gap-1.5">
+            <div class="flex items-stretch w-full gap-1.5">
+                <!-- Left LCARS Amber/Orange Corner Elbow -->
+                <div class="w-4 sm:w-7 bg-[#ff8800] lcars-elbow-tl flex flex-col justify-between py-1.5 items-center shrink-0">
+                    <span class="w-2 h-1 bg-black/70 rounded-full"></span>
+                    <span class="text-[8px] font-bold text-black lcars-font hidden sm:block">47</span>
+                    <span class="w-2 h-1 bg-black/70 rounded-full"></span>
+                </div>
+
+                <!-- Center Telemetry Panels -->
+                <div class="flex-1 grid grid-cols-12 items-stretch gap-1.5">
+                    <!-- Deflector Shields -->
+                    <div class="col-span-5 sm:col-span-4 lcars-glass px-2.5 py-1.5 rounded-lg flex flex-col justify-center border-l-4 border-l-[#ffaa00]">
+                        <div class="flex justify-between items-center mb-0.5">
+                            <p class="lcars-font text-[9px] sm:text-xs font-bold text-[#ffcc66] uppercase">SHIELDS</p>
+                            <span id="shield-pct" class="text-[9px] sm:text-[11px] font-bold text-[#ffaa00]">100%</span>
+                        </div>
+                        <div class="w-full bg-[#24180c] h-2.5 rounded-full overflow-hidden p-0.5 border border-[#ff8800]/50">
+                            <div id="shield-bar" class="bg-gradient-to-r from-[#ff3333] via-[#ff8800] to-[#ffcc66] h-full w-full rounded-full transition-all duration-200 shadow-[0_0_10px_#ffaa00]"></div>
+                        </div>
+                    </div>
+
+                    <!-- Torpedoes & Tactical Score -->
+                    <div class="col-span-4 sm:col-span-5 lcars-glass px-2.5 py-1.5 rounded-lg flex items-center justify-around border-l-4 border-l-[#ff3333]">
+                        <div class="text-center">
+                            <p class="lcars-font text-[9px] sm:text-xs font-bold text-[#ff6655] uppercase">TORP</p>
+                            <p id="torpedo-val" class="text-xs sm:text-base font-black text-[#ff3333]">0</p>
+                        </div>
+                        <div class="h-6 w-[1px] bg-[#ff8800]/35"></div>
+                        <div class="text-center">
+                            <p class="lcars-font text-[9px] sm:text-xs font-bold text-[#ffcc66] uppercase">SCORE</p>
+                            <p id="score-val" class="text-xs sm:text-base font-black text-[#ffaa00]">000000</p>
+                        </div>
+                    </div>
+
+                    <!-- Warp Status -->
+                    <div class="col-span-3 lcars-glass px-2.5 py-1.5 rounded-lg flex flex-col justify-center text-right border-r-4 border-r-[#ff8800]">
+                        <p id="warp-title" class="lcars-font text-[9px] sm:text-xs font-bold text-[#ffcc66] uppercase">WARP</p>
+                        <p id="warp-val" class="text-[10px] sm:text-sm font-black text-[#ffaa00] truncate">ENGAGED</p>
+                    </div>
+                </div>
+
+                <!-- Right LCARS Peach/Amber Corner Elbow -->
+                <div class="w-4 sm:w-7 bg-[#ffcc66] lcars-elbow-tr flex flex-col justify-between py-1.5 items-center shrink-0">
+                    <span class="w-2 h-1 bg-black/70 rounded-full"></span>
+                    <span class="text-[8px] font-bold text-black lcars-font hidden sm:block">17</span>
+                    <span class="w-2 h-1 bg-black/70 rounded-full"></span>
+                </div>
+            </div>
+
+            <!-- Mission Progress / Sector Objective Bar -->
+            <div class="flex items-center gap-1.5 w-full max-w-2xl mx-auto">
+                <div class="bg-[#ff8800] text-black lcars-font font-bold text-[10px] sm:text-xs px-3 py-1 rounded-l-full uppercase shrink-0">
+                    <span id="sector-badge">SECTOR 01</span>
+                </div>
+                <div class="flex-1 lcars-glass px-3 py-1.5 flex items-center gap-2.5">
+                    <p id="objective-title" class="lcars-font text-[10px] sm:text-xs font-bold text-[#ffcc66] tracking-wider truncate uppercase">MISSION OBJECTIVE</p>
+                    <div class="flex-1 bg-[#24180c] h-2 rounded-full overflow-hidden border border-[#ffaa00]/45">
+                        <div id="mission-bar" class="bg-gradient-to-r from-[#ff8800] to-[#ffcc66] h-full w-0 transition-all duration-300 shadow-[0_0_10px_#ffaa00]"></div>
+                    </div>
+                </div>
+                <div id="belt-status-pill" class="bg-[#cc2222] text-[#ffcc66] lcars-font font-bold text-[10px] sm:text-xs px-3 py-1 rounded-r-full uppercase shrink-0">
+                    BELT
+                </div>
+            </div>
+        </div>
+
+        <!-- Boss Health Bar (LCARS Red Alert) -->
+        <div id="boss-hud" class="w-full max-w-md mx-auto hidden pointer-events-auto text-center px-3">
+            <div class="bg-[#cc2222] text-white lcars-font text-xs sm:text-sm font-bold tracking-widest py-1 px-4 rounded-t-xl uppercase lcars-blink">
+                <p id="boss-warning-text">WARNING: OUT OF WARP - STRIKER-CLASS SCOUT APPROACHING</p>
+            </div>
+            <div class="lcars-glass p-2 rounded-b-xl border-2 border-[#ff3333]">
+                <div class="w-full bg-[#220909] h-2.5 rounded-full overflow-hidden border border-[#ff3333]/70">
+                    <div id="boss-health-bar" class="bg-gradient-to-r from-[#ff3333] via-[#ff6600] to-[#ffaa00] h-full w-full transition-all duration-150"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Action Controls & Notifications -->
+        <div class="flex flex-col items-center pb-12 sm:pb-6 pointer-events-auto gap-2 touch-none">
+            <div class="flex justify-center items-center gap-2.5 sm:gap-3 touch-none">
+                <span class="hidden sm:inline-block w-7 h-9 bg-[#ff8800] rounded-l-full"></span>
+                <button id="fire-btn" type="button" class="touch-none px-5 sm:px-6 py-3 bg-[#ffaa00] hover:bg-[#ffcc66] text-black font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ffcc66] shadow-[0_0_18px_rgba(255,170,0,0.45)] cursor-pointer active:scale-95 transition-transform uppercase">
+                    FIRE PHASERS
+                </button>
+                <button id="torpedo-btn" type="button" class="touch-none opacity-40 px-5 sm:px-6 py-3 bg-[#3a1612] text-[#ff8877] font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ff5544]/40 cursor-pointer active:scale-95 transition-all uppercase">
+                    TORPEDO (0)
+                </button>
+                <span class="hidden sm:inline-block w-7 h-9 bg-[#ffcc66] rounded-r-full"></span>
+            </div>
+            <p class="text-[#ffcc66]/80 text-[8px] sm:text-[10px] tracking-widest text-center bg-black/70 px-3 py-0.5 rounded-full border border-[#ff8800]/30">
+                TWO-FINGER TOUCH: DRAG SCREEN TO STEER, TAP BUTTONS TO FIRE
+            </p>
+        </div>
+    </div>
+
+    <!-- Start / Game Over Overlay Modal (LCARS Display) -->
+    <div id="menu-screen" class="absolute inset-0 z-30 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center text-center p-5 pointer-events-auto">
+        <div class="lcars-glass rounded-3xl max-w-md w-full overflow-hidden border-2 border-[#ff8800] shadow-[0_0_35px_rgba(255,136,0,0.28)]">
+            <div class="flex items-center justify-between bg-[#ff8800] px-5 py-2 text-black lcars-font font-bold text-xs sm:text-sm">
+                <span>LCARS TACTICAL 47-A</span>
+                <span>NCC-1701-D</span>
+            </div>
+            <div class="p-6 sm:p-8">
+                <div class="flex items-center justify-center gap-2 mb-3">
+                    <span class="h-2 w-8 bg-[#ff3333] rounded-full"></span>
+                    <span class="h-2 w-16 bg-[#ffaa00] rounded-full"></span>
+                    <span class="h-2 w-8 bg-[#ffcc66] rounded-full"></span>
+                </div>
+                <h1 id="menu-title" class="text-2xl sm:text-3xl font-black text-[#ffaa00] mb-2 tracking-wider uppercase">STARSHIP CRUISER</h1>
+                <p id="menu-desc" class="text-[#ffcc66]/80 text-xs sm:text-sm mb-6 leading-relaxed">
+                    Navigate the asteroid belt, dodge or shatter incoming boulders, follow the amber shield stream, and defeat enemy flagships.
+                </p>
+
+                <div id="final-score-container" class="hidden mb-6 bg-[#1d130a] border border-[#ff8800]/45 rounded-2xl p-3">
+                    <p class="lcars-font text-xs text-[#ffcc66] uppercase">MISSION REPORT - FINAL SCORE</p>
+                    <p id="final-score" class="text-2xl sm:text-3xl font-bold text-[#ffaa00]">0</p>
+                </div>
+
+                <button id="start-btn" type="button" style="touch-action: manipulation;" class="relative z-10 w-full py-3.5 bg-gradient-to-r from-[#ff8800] via-[#ffaa00] to-[#ffcc66] hover:brightness-110 text-black font-black rounded-full tracking-widest shadow-[0_0_25px_rgba(255,153,0,0.55)] transition-all cursor-pointer active:scale-95 uppercase">
+                    ENGAGE WARP DRIVE
+                </button>
+            </div>
+            <div class="flex h-3 w-full">
+                <div class="w-1/4 bg-[#cc2222]"></div>
+                <div class="w-2/4 bg-[#ffaa00] mx-1"></div>
+                <div class="w-1/4 bg-[#ffcc66]"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Logic Script -->
+    <script>
+        // --- AUDIO SYSTEM ---
+        let audioCtx = null;
+        function initAudio() {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass && !audioCtx) {
+                    audioCtx = new AudioContextClass();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(() => {});
+                }
+            } catch (e) {
+                console.warn('Audio init skipped:', e);
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                if (type === 'laser') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(800, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'torpedo') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.3);
+                    gain.gain.setValueAtTime(0.28, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if (type === 'enemy-laser') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.3);
+                    gain.gain.setValueAtTime(0.16, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if (type === 'explosion') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(125, now);
+                    osc.frequency.linearRampToValueAtTime(30, now + 0.38);
+                    gain.gain.setValueAtTime(0.22, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.38);
+                    osc.start(now); osc.stop(now + 0.38);
+                } else if (type === 'rock-hit') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(195, now);
+                    osc.frequency.exponentialRampToValueAtTime(65, now + 0.12);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now); osc.stop(now + 0.12);
+                } else if (type === 'shield-charge') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.15);
+                    gain.gain.setValueAtTime(0.02, now);
+                    gain.gain.linearRampToValueAtTime(0.001, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'torpedo-pickup') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+                    gain.gain.setValueAtTime(0.24, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now); osc.stop(now + 0.2);
+                } else if (type === 'victory') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554.37, now + 0.2);
+                    osc.frequency.setValueAtTime(659.25, now + 0.4);
+                    gain.gain.setValueAtTime(0.28, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.8);
+                    osc.start(now); osc.stop(now + 0.8);
+                }
+            } catch (e) {}
+        }
+
+        // --- THREE.JS GAME SETUP ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x030205, 0.013);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const baseCamPos = new THREE.Vector3(0, 2.0, 9.5);
+        camera.position.copy(baseCamPos);
+        camera.lookAt(0, 0, -5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // Lighting for detailed crater relief & warm LCARS rim highlights
+        const ambientLight = new THREE.AmbientLight(0xd8dde6, 0.9);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xfff4e0, 1.3);
+        directionalLight.position.set(7, 11, 9);
+        scene.add(directionalLight);
+        const rimLight = new THREE.DirectionalLight(0xff8833, 0.45);
+        rimLight.position.set(-9, -5, -8);
+        scene.add(rimLight);
+
+        // --- PROCEDURAL STARSHIP & ENEMY VECTOR FALLBACK TEXTURES ---
+        // Ensures crisp, unmistakable Galaxy-class cruiser, Striker scout, and Dreadnought cube
+        // visuals even when external PNG files are absent in sandboxed preview environments.
+        function createFallbackCruiserTexture(pitchOffset = 0) {
+            const c = document.createElement('canvas');
+            c.width = 512; c.height = 220;
+            const ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, 512, 220);
+
+            const cy = 112 + pitchOffset * 18;
+
+            // Left & Right Warp Nacelles (sleek hull pods with glowing amber/blue Bussard & warp grilles)
+            [-148, 148].forEach(dx => {
+                const nx = 256 + dx;
+                const ny = cy - 26 - pitchOffset * 8;
+                ctx.fillStyle = '#bcc6d4';
+                ctx.strokeStyle = '#6c7a8e';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.roundRect(nx - 16, ny - 26, 32, 54, 10);
+                ctx.fill();
+                ctx.stroke();
+
+                // Glowing Bussard collector cap
+                const capGrad = ctx.createRadialGradient(nx, ny - 18, 2, nx, ny - 18, 14);
+                capGrad.addColorStop(0, '#ffdd88');
+                capGrad.addColorStop(0.6, '#ff6600');
+                capGrad.addColorStop(1, 'rgba(255,60,0,0)');
+                ctx.fillStyle = capGrad;
+                ctx.beginPath();
+                ctx.arc(nx, ny - 18, 13, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Warp field grille strip
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(nx - 4, ny - 4, 8, 26);
+            });
+
+            // Nacelle Pylons
+            ctx.strokeStyle = '#9aa6b8';
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(212, cy + 4);
+            ctx.lineTo(116, cy - 16 - pitchOffset * 6);
+            ctx.moveTo(300, cy + 4);
+            ctx.lineTo(396, cy - 16 - pitchOffset * 6);
+            ctx.stroke();
+
+            // Engineering Secondary Hull & Deflector Dish
+            ctx.fillStyle = '#aeb9c8';
+            ctx.beginPath();
+            ctx.ellipse(256, cy + 16, 46, 26, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const defGrad = ctx.createRadialGradient(256, cy + 20, 2, 256, cy + 20, 22);
+            defGrad.addColorStop(0, '#ffffff');
+            defGrad.addColorStop(0.45, '#ffaa00');
+            defGrad.addColorStop(1, 'rgba(255,120,0,0)');
+            ctx.fillStyle = defGrad;
+            ctx.beginPath();
+            ctx.arc(256, cy + 20, 20, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Broad Elliptical Primary Saucer Section
+            const saucerGrad = ctx.createLinearGradient(110, cy - 35, 402, cy + 30);
+            saucerGrad.addColorStop(0, '#9aa6b8');
+            saucerGrad.addColorStop(0.5, '#e2e8f0');
+            saucerGrad.addColorStop(1, '#94a3b8');
+            ctx.fillStyle = saucerGrad;
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(256, cy - 4, 142, 42 - Math.abs(pitchOffset) * 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Saucer Panel Line & Bridge Dome
+            ctx.strokeStyle = 'rgba(71, 85, 105, 0.55)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(256, cy - 4, 102, 27 - Math.abs(pitchOffset) * 4, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.beginPath();
+            ctx.ellipse(256, cy - 10, 24, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Impulse Engine Glow
+            ctx.fillStyle = '#ff4422';
+            ctx.fillRect(222, cy - 22, 22, 6);
+            ctx.fillRect(268, cy - 22, 22, 6);
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        function createFallbackScoutTexture() {
+            const c = document.createElement('canvas');
+            c.width = 512; c.height = 256;
+            const ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, 512, 256);
+
+            // Swept-wing Striker Bird-of-Prey silhouette
+            const wingGrad = ctx.createLinearGradient(40, 60, 472, 190);
+            wingGrad.addColorStop(0, '#2d4a36');
+            wingGrad.addColorStop(0.5, '#4b7a57');
+            wingGrad.addColorStop(1, '#263f2e');
+            ctx.fillStyle = wingGrad;
+            ctx.strokeStyle = '#84cc16';
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+            ctx.moveTo(256, 48);
+            ctx.lineTo(310, 96);
+            ctx.lineTo(486, 152);
+            ctx.lineTo(430, 178);
+            ctx.lineTo(300, 145);
+            ctx.lineTo(256, 206);
+            ctx.lineTo(212, 145);
+            ctx.lineTo(82, 178);
+            ctx.lineTo(26, 152);
+            ctx.lineTo(202, 96);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Wingtip Disruptor Cannons
+            ctx.fillStyle = '#ff4422';
+            ctx.beginPath();
+            ctx.arc(88, 162, 8, 0, Math.PI * 2);
+            ctx.arc(424, 162, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Command Pod Core
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.ellipse(256, 148, 28, 22, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffaa00';
+            ctx.beginPath();
+            ctx.arc(256, 152, 9, 0, Math.PI * 2);
+            ctx.fill();
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        function createFallbackFlagshipTexture() {
+            const c = document.createElement('canvas');
+            c.width = 512; c.height = 512;
+            const ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, 512, 512);
+
+            // Armored Dreadnought Cube Hull
+            ctx.fillStyle = '#1b2421';
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 4;
+            ctx.fillRect(48, 48, 416, 416);
+            ctx.strokeRect(48, 48, 416, 416);
+
+            // Structural Lattice & Conduit Grid
+            for (let x = 64; x < 448; x += 28) {
+                for (let y = 64; y < 448; y += 28) {
+                    const shade = 28 + Math.floor(Math.random() * 36);
+                    ctx.fillStyle = `rgb(${shade}, ${shade + 8}, ${shade + 4})`;
+                    ctx.fillRect(x, y, 22, 22);
+                    if (Math.random() < 0.22) {
+                        ctx.fillStyle = Math.random() < 0.7 ? '#22c55e' : '#ff4422';
+                        ctx.fillRect(x + 7, y + 7, 8, 8);
+                    }
+                }
+            }
+
+            // Inner glowing power core
+            const coreGrad = ctx.createRadialGradient(256, 256, 10, 256, 256, 130);
+            coreGrad.addColorStop(0, 'rgba(74, 222, 128, 0.75)');
+            coreGrad.addColorStop(0.55, 'rgba(22, 163, 74, 0.25)');
+            coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = coreGrad;
+            ctx.beginPath();
+            ctx.arc(256, 256, 130, 0, Math.PI * 2);
+            ctx.fill();
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        const playerGroup = new THREE.Group();
+        scene.add(playerGroup);
+
+        let centerTexture = createFallbackCruiserTexture(0);
+        let topTexture = createFallbackCruiserTexture(-1.0);
+        let midTopTexture = createFallbackCruiserTexture(-0.5);
+        let midBottomTexture = createFallbackCruiserTexture(0.5);
+        let bottomTexture = createFallbackCruiserTexture(1.0);
+
+        let scoutTexture = createFallbackScoutTexture();
+        let flagshipTexture = createFallbackFlagshipTexture();
+
+        function loadTransparentTexture(url, callback) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imgData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        if (data[i] < 25 && data[i + 1] < 25 && data[i + 2] < 25) {
+                            data[i + 3] = 0;
+                        }
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                    const texture = new THREE.CanvasTexture(canvas);
+                    texture.generateMipmaps = true;
+                    texture.minFilter = THREE.LinearMipmapLinearFilter;
+                    callback(texture);
+                } catch (err) {
+                    callback(null);
+                }
+            };
+            img.onerror = () => callback(null);
+            img.src = url;
+        }
+
+        const shipGeo = new THREE.PlaneGeometry(2.6, 1.1);
+        const material1 = new THREE.MeshBasicMaterial({ map: centerTexture, transparent: true, opacity: 1.0, side: THREE.DoubleSide });
+        const material2 = new THREE.MeshBasicMaterial({ map: centerTexture, transparent: true, opacity: 0.0, side: THREE.DoubleSide });
+        playerGroup.add(new THREE.Mesh(shipGeo, material1));
+        const m2 = new THREE.Mesh(shipGeo, material2);
+        m2.position.z = 0.001;
+        playerGroup.add(m2);
+
+        loadTransparentTexture('ship.png', (tex) => { if (tex) { centerTexture = tex; material1.map = tex; material1.needsUpdate = true; } });
+        loadTransparentTexture('ship top.png', (tex) => { if (tex) topTexture = tex; });
+        loadTransparentTexture('ship mid-top.png', (tex) => { if (tex) midTopTexture = tex; });
+        loadTransparentTexture('ship mid-bottom.png', (tex) => { if (tex) midBottomTexture = tex; });
+        loadTransparentTexture('ship bottom.png', (tex) => { if (tex) bottomTexture = tex; });
+        loadTransparentTexture('striker_scout.png', (tex) => { if (tex) scoutTexture = tex; });
+        loadTransparentTexture('dreadnought_flagship.png', (tex) => { if (tex) flagshipTexture = tex; });
+
+        // --- PROCEDURAL CRAGGY ASTEROID FACTORY (Varied Greys, Irregular Rock, Craters & Texture) ---
+        const asteroidShadePalette = [
+            0x4b4e54, // Dark basalt grey
+            0x64686e, // Medium slate grey
+            0x7e8288, // Light granite grey
+            0x3d4045, // Deep charcoal iron
+            0x8c8780, // Warm dusty regolith grey
+            0x585c62  // Nickel-stone grey
+        ];
+
+        const asteroidTextures = [];
+        for (let t = 0; t < 4; t++) {
+            const c = document.createElement('canvas');
+            c.width = 256; c.height = 256;
+            const ctx = c.getContext('2d');
+
+            ctx.fillStyle = '#8a8a8a';
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Fine mineral grain
+            for (let s = 0; s < 1200; s++) {
+                const v = 90 + Math.floor(Math.random() * 115);
+                ctx.fillStyle = `rgb(${v},${v},${v})`;
+                ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+            }
+
+            // Impact craters with bright rims & shadowed bowls
+            for (let cr = 0; cr < 14; cr++) {
+                const cx = Math.random() * 256;
+                const cy = Math.random() * 256;
+                const r = 6 + Math.random() * 22;
+                const grad = ctx.createRadialGradient(cx - r * 0.15, cy - r * 0.15, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, '#292929');
+                grad.addColorStop(0.68, '#525252');
+                grad.addColorStop(0.88, '#cccccc');
+                grad.addColorStop(1, 'rgba(138,138,138,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            asteroidTextures.push(tex);
+        }
+
+        const craggyGeometries = [];
+        for (let g = 0; g < 8; g++) {
+            const detail = g % 2 === 0 ? 2 : 1;
+            const geo = new THREE.IcosahedronGeometry(1.0, detail);
+            const pos = geo.attributes.position;
+
+            const craters = [];
+            const numCraters = 5 + Math.floor(Math.random() * 4);
+            for (let c = 0; c < numCraters; c++) {
+                craters.push({
+                    dir: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(),
+                    radius: 0.35 + Math.random() * 0.42,
+                    depth: 0.13 + Math.random() * 0.16
+                });
+            }
+
+            const stretchX = 0.8 + Math.random() * 0.45;
+            const stretchY = 0.75 + Math.random() * 0.42;
+            const stretchZ = 0.8 + Math.random() * 0.45;
+            const seed = Math.random() * 100;
+            const v = new THREE.Vector3();
+
+            for (let i = 0; i < pos.count; i++) {
+                v.fromBufferAttribute(pos, i);
+                const norm = v.clone().normalize();
+                const n1 = Math.sin(norm.x * 3.7 + seed) * Math.cos(norm.y * 4.1 - seed) * Math.sin(norm.z * 3.3 + seed);
+                const n2 = Math.cos(norm.x * 8.1 - seed) * Math.sin(norm.y * 7.7 + seed) * 0.32;
+                let displacement = 1.0 + n1 * 0.22 + n2 * 0.1;
+
+                for (let c = 0; c < craters.length; c++) {
+                    const dist = norm.distanceTo(craters[c].dir);
+                    if (dist < craters[c].radius) {
+                        const t = dist / craters[c].radius;
+                        const bowl = Math.cos(t * Math.PI * 0.5);
+                        const rim = t > 0.75 ? Math.sin(((t - 0.75) / 0.25) * Math.PI) * 0.045 : 0;
+                        displacement -= bowl * craters[c].depth - rim;
+                    }
+                }
+
+                v.copy(norm).multiplyScalar(Math.max(0.48, displacement));
+                v.x *= stretchX;
+                v.y *= stretchY;
+                v.z *= stretchZ;
+                pos.setXYZ(i, v.x, v.y, v.z);
+            }
+
+            geo.computeVertexNormals();
+            craggyGeometries.push(geo);
+        }
+
+        function createAsteroidMesh(scale, isOuterFlyby = false) {
+            const geo = craggyGeometries[Math.floor(Math.random() * craggyGeometries.length)];
+            const shade = asteroidShadePalette[Math.floor(Math.random() * asteroidShadePalette.length)];
+            const tex = asteroidTextures[Math.floor(Math.random() * asteroidTextures.length)];
+
+            const mat = new THREE.MeshStandardMaterial({
+                color: shade,
+                map: tex,
+                bumpMap: tex,
+                bumpScale: isOuterFlyby ? 0.06 : 0.11,
+                roughness: 0.88,
+                metalness: 0.1,
+                flatShading: true
+            });
+
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.scale.set(
+                scale * (0.86 + Math.random() * 0.28),
+                scale * (0.86 + Math.random() * 0.28),
+                scale * (0.86 + Math.random() * 0.28)
+            );
+            mesh.rotation.set(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
+            return mesh;
+        }
+
+        // --- STARFIELD SYSTEMS (High Density) ---
+        const starCount = 4000;
+
+        // 1. Warp Star Streaks Setup
+        const starGeo = new THREE.BufferGeometry();
+        const starPositions = new Float32Array(starCount * 6);
+        const starOriginalPositions = new Float32Array(starCount * 6);
+        const starColors = new Float32Array(starCount * 6);
+        const colors = [new THREE.Color(0xffcc88), new THREE.Color(0x99ddff), new THREE.Color(0xffffff)];
+
+        for (let i = 0; i < starCount * 6; i += 6) {
+            const x = (Math.random() - 0.5) * 160;
+            const y = (Math.random() - 0.5) * 140;
+            const z = (Math.random() - 0.5) * 450 - 50;
+
+            starOriginalPositions[i] = x; starOriginalPositions[i + 1] = y; starOriginalPositions[i + 2] = z;
+            starOriginalPositions[i + 3] = x; starOriginalPositions[i + 4] = y; starOriginalPositions[i + 5] = z - 2;
+
+            starPositions[i] = x; starPositions[i + 1] = y; starPositions[i + 2] = z;
+            starPositions[i + 3] = x; starPositions[i + 4] = y; starPositions[i + 5] = z - 2;
+
+            const baseColor = colors[Math.floor(Math.random() * colors.length)];
+            starColors[i] = baseColor.r; starColors[i + 1] = baseColor.g; starColors[i + 2] = baseColor.b;
+            starColors[i + 3] = baseColor.r; starColors[i + 4] = baseColor.g; starColors[i + 5] = baseColor.b;
+        }
+
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+        const starMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9 });
+        const starField = new THREE.LineSegments(starGeo, starMat);
+        scene.add(starField);
+
+        // 2. Static Point Starfield
+        const dotCanvas = document.createElement('canvas');
+        dotCanvas.width = 32; dotCanvas.height = 32;
+        const dotCtx = dotCanvas.getContext('2d');
+        dotCtx.beginPath();
+        dotCtx.arc(16, 16, 14, 0, Math.PI * 2);
+        dotCtx.fillStyle = '#ffffff';
+        dotCtx.fill();
+        const dotTexture = new THREE.CanvasTexture(dotCanvas);
+
+        const pointStarGeo = new THREE.BufferGeometry();
+        const pointPositions = new Float32Array(starCount * 3);
+        const pointColors = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i += 3) {
+            pointPositions[i] = (Math.random() - 0.5) * 180;
+            pointPositions[i + 1] = (Math.random() - 0.5) * 160;
+            pointPositions[i + 2] = (Math.random() - 0.5) * 350 - 40;
+
+            const baseColor = colors[Math.floor(Math.random() * colors.length)];
+            pointColors[i] = baseColor.r; pointColors[i + 1] = baseColor.g; pointColors[i + 2] = baseColor.b;
+        }
+        pointStarGeo.setAttribute('position', new THREE.BufferAttribute(pointPositions, 3));
+        pointStarGeo.setAttribute('color', new THREE.BufferAttribute(pointColors, 3));
+        const pointStarMat = new THREE.PointsMaterial({ size: 0.5, map: dotTexture, vertexColors: true, transparent: true, opacity: 0.95, alphaTest: 0.1, depthWrite: false });
+        const pointStarField = new THREE.Points(pointStarGeo, pointStarMat);
+        pointStarField.visible = false;
+        scene.add(pointStarField);
+
+        // --- SINGLE WAVY SHIELD STREAM LINE (Warm LCARS Amber Energy) ---
+        const streamNodeCount = 60;
+        const streamPositions = new Float32Array(streamNodeCount * 3);
+        for (let i = 0; i < streamNodeCount; i++) {
+            streamPositions[i * 3] = Math.sin(i * 0.2) * 2.2;
+            streamPositions[i * 3 + 1] = Math.cos(i * 0.15) * 0.9;
+            streamPositions[i * 3 + 2] = -i * 2.5;
+        }
+        const shieldStreamGeo = new THREE.BufferGeometry();
+        shieldStreamGeo.setAttribute('position', new THREE.BufferAttribute(streamPositions, 3));
+        const streamMat = new THREE.LineBasicMaterial({ color: 0xffaa00, linewidth: 2, transparent: true, opacity: 0.26 });
+        const shieldStream = new THREE.Line(shieldStreamGeo, streamMat);
+        scene.add(shieldStream);
+
+        // --- GAME STATE ---
+        let gameActive = false, score = 0, shields = 100, photonTorpedoes = 0, warpFactor = 1, missionProgress = 0, sectorCount = 1;
+        let bossActive = false, bossTransitionTimer = 0, jumpToWarpTimer = 0, boss = null, bossHealth = 300, maxBossHealth = 300, enemyLaserTimer = 0;
+        let lasers = [], enemyLasers = [], photonProjectiles = [], meteors = [], outerMeteors = [], torpedoPickups = [], explosions = [];
+        let targetX = 0, targetY = 0, keys = {}, lastShotTime = 0, lastTorpedoTime = 0;
+        let activeTouchId = null, firingTouchId = null;
+        let touchStartX = 0, touchStartY = 0, shipStartX = 0, shipStartY = 0;
+        let streamWaveOffset = 0;
+        let shakeIntensity = 0;
+        let damageCooldown = 0;
+        let meteorSpawnAccumulator = 0;
+        let outerSpawnAccumulator = 0;
+
+        const fireBtnEl = document.getElementById('fire-btn');
+        const torpedoBtnEl = document.getElementById('torpedo-btn');
+        const startBtnEl = document.getElementById('start-btn');
+
+        function updateShieldHUD() {
+            const clamped = Math.max(0, Math.round(shields));
+            document.getElementById('shield-bar').style.width = clamped + '%';
+            document.getElementById('shield-pct').innerText = clamped + '%';
+        }
+
+        function updateTorpedoHUD() {
+            document.getElementById('torpedo-val').innerText = photonTorpedoes;
+            torpedoBtnEl.innerText = `TORPEDO (${photonTorpedoes})`;
+            if (photonTorpedoes > 0) {
+                torpedoBtnEl.className = "touch-none px-5 sm:px-6 py-3 bg-[#ff3333] hover:bg-[#ff5544] text-white font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ffaa00] shadow-[0_0_20px_rgba(255,51,51,0.65)] cursor-pointer active:scale-95 transition-all uppercase";
+            } else {
+                torpedoBtnEl.className = "touch-none opacity-40 px-5 sm:px-6 py-3 bg-[#3a1612] text-[#ff8877] font-black text-xs sm:text-sm rounded-full tracking-widest border-2 border-[#ff5544]/40 cursor-pointer active:scale-95 transition-all uppercase";
+            }
+        }
+
+        function triggerDamageFeedback(intensity = 0.22) {
+            shakeIntensity = Math.min(0.45, shakeIntensity + intensity);
+            const flash = document.getElementById('damage-flash');
+            flash.style.opacity = '0.8';
+            setTimeout(() => { flash.style.opacity = '0'; }, 130);
+        }
+
+        function spawnExplosion(position, size = 1.0, isFiery = false) {
+            const count = Math.min(18, Math.floor(7 + size * 8));
+            const group = new THREE.Group();
+            group.position.copy(position);
+
+            for (let i = 0; i < count; i++) {
+                const isSpark = i % 2 === 0 || isFiery;
+                const pGeo = isSpark
+                    ? new THREE.OctahedronGeometry(0.075 * size + Math.random() * 0.06, 0)
+                    : new THREE.DodecahedronGeometry(0.1 * size + Math.random() * 0.08, 0);
+                const pColor = isSpark
+                    ? (Math.random() > 0.4 ? 0xff9900 : 0xff3300)
+                    : asteroidShadePalette[Math.floor(Math.random() * asteroidShadePalette.length)];
+                const pMat = new THREE.MeshBasicMaterial({ color: pColor, transparent: true, opacity: 1.0 });
+                const chunk = new THREE.Mesh(pGeo, pMat);
+                chunk.userData = {
+                    vel: new THREE.Vector3(
+                        (Math.random() - 0.5) * (0.24 + size * 0.1),
+                        (Math.random() - 0.5) * (0.24 + size * 0.1),
+                        (Math.random() - 0.3) * (0.22 + size * 0.08)
+                    ),
+                    rot: new THREE.Vector3((Math.random() - 0.5) * 0.22, (Math.random() - 0.5) * 0.22, (Math.random() - 0.5) * 0.22)
+                };
+                group.add(chunk);
+            }
+
+            scene.add(group);
+            explosions.push({ group, life: 1.0, decay: 0.038 });
+        }
+
+        // --- ORDER-INDEPENDENT TWO-FINGER TOUCH & BUTTON CONTROLS ---
+        function releasePointer(pointerId) {
+            if (pointerId === activeTouchId) activeTouchId = null;
+            if (pointerId === firingTouchId) firingTouchId = null;
+        }
+
+        // Dedicated multi-touch & click handlers directly on FIRE PHASERS button
+        fireBtnEl.addEventListener('pointerdown', (e) => {
+            if (!gameActive) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (firingTouchId === null) {
+                firingTouchId = e.pointerId;
+            }
+            firePhasers();
+        }, { passive: false });
+
+        fireBtnEl.addEventListener('pointerup', (e) => {
+            e.stopPropagation();
+            if (e.pointerId === firingTouchId) firingTouchId = null;
+        });
+
+        fireBtnEl.addEventListener('pointercancel', (e) => {
+            e.stopPropagation();
+            if (e.pointerId === firingTouchId) firingTouchId = null;
+        });
+
+        fireBtnEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (gameActive) firePhasers();
+        });
+
+        // Dedicated multi-touch & click handlers directly on TORPEDO button
+        function handleTorpedoTrigger(e) {
+            if (!gameActive) return;
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            fireTorpedo();
+        }
+        torpedoBtnEl.addEventListener('pointerdown', handleTorpedoTrigger, { passive: false });
+        torpedoBtnEl.addEventListener('touchstart', handleTorpedoTrigger, { passive: false });
+        torpedoBtnEl.addEventListener('click', handleTorpedoTrigger);
+
+        // Global pointer handlers strictly for steering (never fires phasers on screen touch)
+        window.addEventListener('pointerdown', (e) => {
+            if (!gameActive || e.target.closest('button')) return;
+            if (e.pointerType === 'touch') e.preventDefault();
+
+            if (activeTouchId === null) {
+                activeTouchId = e.pointerId;
+                touchStartX = e.clientX;
+                touchStartY = e.clientY;
+                shipStartX = targetX;
+                shipStartY = targetY;
+            }
+        }, { passive: false });
+
+        window.addEventListener('pointermove', (e) => {
+            if (!gameActive || e.pointerId !== activeTouchId) return;
+            const deltaX = (e.clientX - touchStartX) * 0.02;
+            const deltaY = (e.clientY - touchStartY) * 0.02;
+            targetX = THREE.MathUtils.clamp(shipStartX + deltaX, -3.0, 3.0);
+            targetY = THREE.MathUtils.clamp(shipStartY - deltaY, -1.8, 1.8);
+        });
+
+        window.addEventListener('pointerup', (e) => releasePointer(e.pointerId));
+        window.addEventListener('pointercancel', (e) => releasePointer(e.pointerId));
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space' && gameActive) firePhasers();
+            if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyE' || e.code === 'KeyT' || e.code === 'Enter') && gameActive) fireTorpedo();
+        });
+        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+        function firePhasers() {
+            const now = Date.now();
+            if (now - lastShotTime < 145) return;
+            lastShotTime = now;
+            playSound('laser');
+            const laserGeo = new THREE.CylinderGeometry(0.032, 0.032, 1.0, 8);
+            laserGeo.rotateX(Math.PI / 2);
+            const laserMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            [-0.7, 0.7].forEach(offsetX => {
+                const laser = new THREE.Mesh(laserGeo, laserMat);
+                laser.position.set(playerGroup.position.x + offsetX, playerGroup.position.y, playerGroup.position.z - 1);
+                scene.add(laser);
+                lasers.push(laser);
+            });
+        }
+
+        function fireTorpedo() {
+            const now = Date.now();
+            if (now - lastTorpedoTime < 220) return;
+            if (photonTorpedoes <= 0) return;
+            lastTorpedoTime = now;
+            photonTorpedoes--;
+            updateTorpedoHUD();
+            playSound('torpedo');
+
+            const torpGroup = new THREE.Group();
+            const coreGeo = new THREE.SphereGeometry(0.24, 14, 14);
+            const coreMat = new THREE.MeshBasicMaterial({ color: 0xffdd66 });
+            const haloGeo = new THREE.SphereGeometry(0.38, 12, 12);
+            const haloMat = new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.65 });
+            torpGroup.add(new THREE.Mesh(coreGeo, coreMat));
+            torpGroup.add(new THREE.Mesh(haloGeo, haloMat));
+            torpGroup.position.set(playerGroup.position.x, playerGroup.position.y, playerGroup.position.z - 1.1);
+            scene.add(torpGroup);
+            photonProjectiles.push(torpGroup);
+        }
+
+        function fireEnemyLaser() {
+            if (!bossActive || bossTransitionTimer > 0 || !boss) return;
+            playSound('enemy-laser');
+
+            // Balanced enemy volley: alternating hardpoints with slight spread so shots are trackable & dodgeable
+            const isScout = sectorCount === 1;
+            const baseWidth = isScout ? 3.0 : 5.0;
+            const baseHeight = isScout ? 1.5 : 5.0;
+            const volleyIndex = Math.floor(enemyLaserTimer / 115);
+            const muzzleFractions = isScout
+                ? [volleyIndex % 2 === 0 ? -0.32 : 0.32]
+                : (volleyIndex % 2 === 0 ? [-0.34, 0.14] : [-0.14, 0.34]);
+
+            const laserGeo = new THREE.CylinderGeometry(0.075, 0.11, 2.2, 10);
+            const laserMat = new THREE.MeshBasicMaterial({
+                color: isScout ? 0xff5533 : 0xff2b18,
+                transparent: true,
+                opacity: 0.96,
+                blending: THREE.AdditiveBlending
+            });
+
+            muzzleFractions.forEach((fraction, idx) => {
+                const muzzle = new THREE.Vector3(
+                    boss.position.x + fraction * baseWidth * boss.scale.x,
+                    boss.position.y - 0.12 * baseHeight * boss.scale.y,
+                    boss.position.z + 0.45 * boss.scale.z
+                );
+                const aimTarget = playerGroup.position.clone();
+                aimTarget.x += (idx === 0 ? -0.35 : 0.35) + (Math.random() - 0.5) * 0.45;
+                aimTarget.y += (Math.random() - 0.5) * 0.35;
+
+                const direction = aimTarget.sub(muzzle).normalize();
+                const bolt = new THREE.Mesh(laserGeo, laserMat);
+                bolt.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+                bolt.position.copy(muzzle).addScaledVector(direction, 1.1);
+                bolt.userData.velocity = direction.multiplyScalar(0.62);
+                scene.add(bolt);
+                enemyLasers.push(bolt);
+            });
+        }
+
+        // --- BALANCED CENTRAL ASTEROID BELT SPAWNER ---
+        function spawnMeteor(forcedTier = null, customX = null, customY = null, customZ = -130) {
+            if (!gameActive || bossActive || jumpToWarpTimer > 0) return;
+
+            if (!forcedTier && meteors.length >= 9) return;
+
+            let tier = forcedTier;
+            if (!tier) {
+                const roll = Math.random();
+                if (roll < 0.50) tier = 'small';
+                else if (roll < 0.85) tier = 'medium';
+                else tier = 'large';
+            }
+
+            let radius, hp, damage, points, speedBonus;
+            if (tier === 'small') {
+                radius = 0.34 + Math.random() * 0.16;
+                hp = 1;
+                damage = 8;
+                points = 120;
+                speedBonus = 0.08 + Math.random() * 0.08;
+            } else if (tier === 'medium') {
+                radius = 0.64 + Math.random() * 0.22;
+                hp = 2;
+                damage = 12;
+                points = 200;
+                speedBonus = 0.03 + Math.random() * 0.05;
+            } else {
+                radius = 1.05 + Math.random() * 0.25;
+                hp = 3;
+                damage = 16;
+                points = 400;
+                speedBonus = 0.0 + Math.random() * 0.03;
+            }
+
+            let spawnX = customX;
+            let spawnY = customY;
+            if (spawnX === null || spawnY === null) {
+                for (let attempt = 0; attempt < 6; attempt++) {
+                    const candidateX = (Math.random() - 0.5) * 6.4;
+                    const candidateY = (Math.random() - 0.5) * 3.8;
+
+                    if (Math.hypot(candidateX, candidateY) < 0.95 && Math.random() < 0.65) continue;
+
+                    const tooClose = meteors.some(m =>
+                        m.position.z < -85 &&
+                        Math.hypot(m.position.x - candidateX, m.position.y - candidateY) < (radius + m.userData.radius + 1.35)
+                    );
+                    if (!tooClose) {
+                        spawnX = candidateX;
+                        spawnY = candidateY;
+                        break;
+                    }
+                }
+                if (spawnX === null) {
+                    spawnX = (Math.random() < 0.5 ? -1 : 1) * (1.2 + Math.random() * 1.9);
+                    spawnY = (Math.random() - 0.5) * 3.6;
+                }
+            }
+
+            const meteor = createAsteroidMesh(radius, false);
+            meteor.position.set(
+                THREE.MathUtils.clamp(spawnX, -3.2, 3.2),
+                THREE.MathUtils.clamp(spawnY, -1.9, 1.9),
+                customZ
+            );
+
+            meteor.userData = {
+                tier,
+                radius,
+                hp,
+                damage,
+                points,
+                speedBonus,
+                driftX: (Math.random() - 0.5) * 0.008,
+                driftY: (Math.random() - 0.5) * 0.006,
+                rotSpeed: new THREE.Vector3(
+                    (Math.random() - 0.5) * (tier === 'small' ? 0.055 : 0.03),
+                    (Math.random() - 0.5) * (tier === 'small' ? 0.055 : 0.03),
+                    (Math.random() - 0.5) * 0.03
+                )
+            };
+
+            scene.add(meteor);
+            meteors.push(meteor);
+        }
+
+        function spawnBeltWave() {
+            if (!gameActive || bossActive || jumpToWarpTimer > 0) return;
+            spawnMeteor();
+            if (meteors.length < 7 && Math.random() < 0.35) {
+                const last = meteors[meteors.length - 1];
+                const oppX = last ? THREE.MathUtils.clamp(-last.position.x + (Math.random() - 0.5) * 1.2, -3.1, 3.1) : (Math.random() - 0.5) * 5.8;
+                const oppY = (Math.random() - 0.5) * 3.4;
+                spawnMeteor('small', oppX, oppY, -142);
+            }
+        }
+
+        // --- OUTER-WALL PARALLAX FLYBY ASTEROIDS ---
+        function spawnOuterWallAsteroid(initialZ = null) {
+            if (!gameActive || bossActive || jumpToWarpTimer > 0) return;
+
+            const side = Math.random() < 0.5 ? -1 : 1;
+            const isLargeBoulder = Math.random() < 0.24;
+            const scale = isLargeBoulder ? (1.5 + Math.random() * 2.0) : (0.45 + Math.random() * 1.05);
+
+            const outerRock = createAsteroidMesh(scale, true);
+            const xDist = 5.4 + Math.random() * 11.5;
+            const yPos = (Math.random() - 0.5) * 15.0;
+            const zPos = initialZ !== null ? initialZ : (-140 - Math.random() * 35);
+
+            outerRock.position.set(side * xDist, yPos, zPos);
+            outerRock.userData = {
+                speedMult: 1.55 + Math.random() * 0.9,
+                rotSpeed: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.04,
+                    (Math.random() - 0.5) * 0.04,
+                    (Math.random() - 0.5) * 0.03
+                )
+            };
+
+            scene.add(outerRock);
+            outerMeteors.push(outerRock);
+        }
+
+        function seedInitialOuterBelt() {
+            outerMeteors.forEach(om => scene.remove(om));
+            outerMeteors = [];
+            for (let i = 0; i < 38; i++) {
+                spawnOuterWallAsteroid(-10 - Math.random() * 145);
+            }
+        }
+
+        function spawnTorpedoPickup() {
+            if (!gameActive || bossActive || jumpToWarpTimer > 0) return;
+            const pickupMat = new THREE.MeshStandardMaterial({ color: 0xff5500, emissive: 0xff3300, emissiveIntensity: 0.85, roughness: 0.2 });
+            const pickup = new THREE.Mesh(new THREE.OctahedronGeometry(0.6), pickupMat);
+            pickup.position.set((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3, -120);
+            scene.add(pickup);
+            torpedoPickups.push(pickup);
+        }
+        setInterval(spawnTorpedoPickup, 4800);
+
+        function spawnBoss() {
+            bossActive = true;
+            bossTransitionTimer = 120;
+            missionProgress = 100;
+            enemyLaserTimer = 0;
+            bossHealth = maxBossHealth;
+            document.getElementById('boss-hud').classList.remove('hidden');
+            document.getElementById('belt-status-pill').innerText = "ALERT";
+            document.getElementById('belt-status-pill').classList.add('lcars-blink');
+
+            if (sectorCount === 1) {
+                document.getElementById('boss-warning-text').innerText = "WARNING: OUT OF WARP - STRIKER-CLASS SCOUT APPROACHING";
+                document.getElementById('objective-title').innerText = "DESTROY STRIKER SCOUT";
+            } else {
+                document.getElementById('boss-warning-text').innerText = "WARNING: OUT OF WARP - DREADNOUGHT FLAGSHIP APPROACHING";
+                document.getElementById('objective-title').innerText = "DESTROY DREADNOUGHT FLAGSHIP";
+            }
+
+            document.getElementById('objective-title').classList.remove('text-[#ffcc66]');
+            document.getElementById('objective-title').classList.add('text-[#ff3333]');
+            document.getElementById('warp-val').innerText = "DISENGAGED";
+            document.getElementById('warp-val').classList.remove('text-[#ffaa00]');
+            document.getElementById('warp-val').classList.add('text-[#ff3333]');
+
+            meteors.forEach(m => scene.remove(m)); meteors = [];
+            outerMeteors.forEach(om => scene.remove(om)); outerMeteors = [];
+            torpedoPickups.forEach(tp => scene.remove(tp)); torpedoPickups = [];
+            shieldStream.visible = false;
+
+            starField.visible = false;
+            pointStarField.visible = true;
+
+            let bossMat;
+            if (sectorCount === 1) {
+                bossMat = new THREE.MeshBasicMaterial({ map: scoutTexture, transparent: true, side: THREE.DoubleSide });
+                boss = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.5), bossMat);
+            } else {
+                bossMat = new THREE.MeshBasicMaterial({ map: flagshipTexture, transparent: true, side: THREE.DoubleSide });
+                boss = new THREE.Mesh(new THREE.PlaneGeometry(5.0, 5.0), bossMat);
+            }
+
+            boss.position.set(0, 1.2, -120);
+            boss.scale.set(1.0, 1.0, 1.0);
+            scene.add(boss);
+        }
+
+        function sectorComplete() {
+            bossActive = false;
+            jumpToWarpTimer = 90;
+            missionProgress = 0;
+            sectorCount += 1;
+            maxBossHealth += 100;
+            document.getElementById('boss-hud').classList.add('hidden');
+            document.getElementById('boss-health-bar').style.width = '100%';
+            document.getElementById('sector-badge').innerText = "SECTOR " + String(sectorCount).padStart(2, '0');
+            document.getElementById('objective-title').innerText = "MISSION OBJECTIVE";
+            document.getElementById('objective-title').classList.remove('text-[#ff3333]');
+            document.getElementById('objective-title').classList.add('text-[#ffcc66]');
+            document.getElementById('belt-status-pill').innerText = "BELT";
+            document.getElementById('belt-status-pill').classList.remove('lcars-blink');
+            document.getElementById('warp-val').innerText = "JUMPING TO WARP";
+            document.getElementById('warp-val').classList.remove('text-[#ff3333]');
+            document.getElementById('warp-val').classList.add('text-[#ffaa00]');
+            document.getElementById('menu-desc').innerText = "Sector " + sectorCount + " objective: Subspace interference detected. Defeat flagship forces.";
+
+            shieldStream.visible = true;
+            starField.visible = true;
+            pointStarField.visible = false;
+            seedInitialOuterBelt();
+
+            playSound('victory');
+            score += 3500;
+        }
+
+        // --- GAME LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth camera shake damping
+            if (shakeIntensity > 0.001) {
+                camera.position.x = baseCamPos.x + (Math.random() - 0.5) * shakeIntensity;
+                camera.position.y = baseCamPos.y + (Math.random() - 0.5) * shakeIntensity;
+                shakeIntensity *= 0.85;
+            } else {
+                camera.position.x = baseCamPos.x;
+                camera.position.y = baseCamPos.y;
+                shakeIntensity = 0;
+            }
+
+            // Update explosion particle bursts
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const exp = explosions[i];
+                exp.life -= exp.decay;
+                exp.group.children.forEach(chunk => {
+                    chunk.position.add(chunk.userData.vel);
+                    chunk.rotation.x += chunk.userData.rot.x;
+                    chunk.rotation.y += chunk.userData.rot.y;
+                    chunk.rotation.z += chunk.userData.rot.z;
+                    chunk.material.opacity = Math.max(0, exp.life);
+                    chunk.scale.multiplyScalar(0.97);
+                });
+                if (exp.life <= 0) {
+                    scene.remove(exp.group);
+                    explosions.splice(i, 1);
+                }
+            }
+
+            if (gameActive) {
+                if (firingTouchId !== null) firePhasers();
+                if (damageCooldown > 0) damageCooldown--;
+
+                playerGroup.position.x += (targetX - playerGroup.position.x) * 0.11;
+                playerGroup.position.y += (targetY - playerGroup.position.y) * 0.11;
+                playerGroup.rotation.z = (playerGroup.position.x - targetX) * -0.06;
+
+                if (centerTexture && topTexture && midTopTexture && midBottomTexture && bottomTexture) {
+                    const y = playerGroup.position.y;
+                    let texA = centerTexture, texB = centerTexture, mix = 0, targetTilt = 0;
+                    if (y <= -1.4) { texA = topTexture; mix = 0; targetTilt = -0.3; }
+                    else if (y > -1.4 && y <= -0.7) { texA = topTexture; texB = midTopTexture; mix = (y - (-1.4)) / (-0.7 - (-1.4)); targetTilt = THREE.MathUtils.lerp(-0.3, -0.1, mix); }
+                    else if (y > -0.7 && y <= -0.2) { texA = midTopTexture; texB = centerTexture; mix = (y - (-0.7)) / (-0.2 - (-0.7)); targetTilt = THREE.MathUtils.lerp(-0.1, 0, mix); }
+                    else if (y > -0.2 && y <= 0.8) { texA = centerTexture; texB = centerTexture; mix = 0; targetTilt = 0; }
+                    else if (y > 0.8 && y <= 1.3) { texA = centerTexture; texB = midBottomTexture; mix = (y - 0.8) / (1.3 - 0.8); targetTilt = THREE.MathUtils.lerp(0, 0.12, mix); }
+                    else if (y > 1.3 && y <= 1.8) { texA = midBottomTexture; texB = bottomTexture; mix = (y - 1.3) / (1.8 - 1.3); targetTilt = THREE.MathUtils.lerp(0.12, 0.25, mix); }
+                    else { texA = bottomTexture; mix = 0; targetTilt = 0.25; }
+                    material1.map = texA; material2.map = texB;
+                    material1.opacity = 1.0 - mix; material2.opacity = mix;
+                    material1.needsUpdate = true; material2.needsUpdate = true;
+                    playerGroup.rotation.x += (targetTilt - playerGroup.rotation.x) * 0.15;
+                }
+
+                if (keys['ArrowLeft'] || keys['KeyA']) targetX = Math.max(targetX - 0.2, -3.0);
+                if (keys['ArrowRight'] || keys['KeyD']) targetX = Math.min(targetX + 0.2, 3.0);
+                if (keys['ArrowUp'] || keys['KeyW']) targetY = Math.min(targetY + 0.2, 1.8);
+                if (keys['ArrowDown'] || keys['KeyS']) targetY = Math.max(targetY - 0.2, -1.8);
+
+                let speed = 0;
+                const positions = starGeo.attributes.position.array;
+
+                if (!bossActive && jumpToWarpTimer <= 0) {
+                    shieldStream.visible = true;
+
+                    missionProgress += (0.02 + (sectorCount * 0.005));
+                    warpFactor = 1 + (sectorCount - 1) * 2;
+                    if (missionProgress >= 100) spawnBoss();
+
+                    const streakLength = 1.0 + (warpFactor * 0.4);
+                    speed = 0.3 + (warpFactor * 0.2);
+
+                    const spawnInterval = Math.max(46, 70 - sectorCount * 4);
+                    meteorSpawnAccumulator++;
+                    if (meteorSpawnAccumulator >= spawnInterval) {
+                        meteorSpawnAccumulator = 0;
+                        spawnBeltWave();
+                    }
+
+                    outerSpawnAccumulator++;
+                    if (outerSpawnAccumulator >= 7) {
+                        outerSpawnAccumulator = 0;
+                        spawnOuterWallAsteroid();
+                        if (Math.random() < 0.4) spawnOuterWallAsteroid();
+                    }
+
+                    for (let i = 0; i < positions.length; i += 6) {
+                        positions[i + 2] += speed;
+                        positions[i + 5] = positions[i + 2] - streakLength;
+                        if (positions[i + 2] > 15) {
+                            const rx = (Math.random() - 0.5) * 160, ry = (Math.random() - 0.5) * 140, rz = -450;
+                            positions[i] = rx; positions[i + 1] = ry; positions[i + 2] = rz;
+                            positions[i + 3] = rx; positions[i + 4] = ry; positions[i + 5] = rz - streakLength;
+                        }
+                    }
+
+                    streamWaveOffset += 0.02;
+                    const streamPos = shieldStream.geometry.attributes.position.array;
+                    let closeToStream = false;
+                    for (let i = 0; i < streamNodeCount; i++) {
+                        streamPos[i * 3 + 2] += speed;
+                        if (streamPos[i * 3 + 2] > 10) {
+                            streamPos[i * 3 + 2] = -150;
+                        }
+                        streamPos[i * 3] = Math.sin(streamWaveOffset + (i * 0.2)) * 1.8;
+                        streamPos[i * 3 + 1] = Math.cos(streamWaveOffset * 0.8 + (i * 0.15)) * 0.7;
+
+                        const nodeVector = new THREE.Vector3(streamPos[i * 3], streamPos[i * 3 + 1], streamPos[i * 3 + 2]);
+                        if (nodeVector.distanceTo(playerGroup.position) < 1.8) {
+                            closeToStream = true;
+                        }
+                    }
+                    shieldStream.geometry.attributes.position.needsUpdate = true;
+
+                    if (closeToStream) {
+                        shields = Math.min(shields + 0.6, 100);
+                        updateShieldHUD();
+                        if (Math.random() < 0.1) playSound('shield-charge');
+                    }
+                } else if (bossActive) {
+                    if (bossTransitionTimer > 0) {
+                        bossTransitionTimer--;
+                        speed = THREE.MathUtils.lerp(1.5, 0.05, 1 - (bossTransitionTimer / 120));
+                    } else {
+                        speed = 0.02;
+                        if (boss && boss.position.z < -25) {
+                            boss.position.z += 0.7;
+                            const t = THREE.MathUtils.clamp((boss.position.z - (-120)) / (-25 - (-120)), 0, 1);
+                            const currentScale = THREE.MathUtils.lerp(1.0, 4.8, t);
+                            boss.scale.set(currentScale, currentScale, currentScale);
+                        }
+                        enemyLaserTimer++;
+                        if (enemyLaserTimer % 115 === 0) {
+                            fireEnemyLaser();
+                        }
+                        if (damageCooldown <= 0 && shields < 100) {
+                            shields = Math.min(100, shields + 0.03);
+                            updateShieldHUD();
+                        }
+                    }
+
+                    for (let i = 0; i < positions.length; i += 6) {
+                        positions[i + 2] += speed;
+                        positions[i + 5] = positions[i + 2] - (speed * 3);
+                        if (positions[i + 2] > 15) {
+                            const rx = (Math.random() - 0.5) * 160, ry = (Math.random() - 0.5) * 140, rz = -450;
+                            positions[i] = rx; positions[i + 1] = ry; positions[i + 2] = rz;
+                            positions[i + 3] = rx; positions[i + 4] = ry; positions[i + 5] = rz - 2;
+                        }
+                    }
+                } else if (jumpToWarpTimer > 0) {
+                    jumpToWarpTimer--;
+                    speed = THREE.MathUtils.lerp(0.2, 4.5, 1 - (jumpToWarpTimer / 90));
+                    const streakLength = THREE.MathUtils.lerp(2, 18, 1 - (jumpToWarpTimer / 90));
+
+                    for (let i = 0; i < positions.length; i += 6) {
+                        positions[i + 2] += speed;
+                        positions[i + 5] = positions[i + 2] - streakLength;
+                        if (positions[i + 2] > 15) {
+                            const rx = (Math.random() - 0.5) * 160, ry = (Math.random() - 0.5) * 140, rz = -450;
+                            positions[i] = rx; positions[i + 1] = ry; positions[i + 2] = rz;
+                            positions[i + 3] = rx; positions[i + 4] = ry; positions[i + 5] = rz - streakLength;
+                        }
+                    }
+
+                    if (jumpToWarpTimer <= 0) {
+                        document.getElementById('warp-val').innerText = "ENGAGED";
+                    }
+                }
+
+                document.getElementById('mission-bar').style.width = missionProgress + '%';
+                starGeo.attributes.position.needsUpdate = true;
+
+                score += (bossActive ? 2 : 1);
+                document.getElementById('score-val').innerText = String(score).padStart(6, '0');
+
+                if (bossActive && boss) {
+                    for (let j = lasers.length - 1; j >= 0; j--) {
+                        if (bossTransitionTimer <= 0 && boss.position.distanceTo(lasers[j].position) < (5.0 * boss.scale.x)) {
+                            playSound('explosion');
+                            spawnExplosion(lasers[j].position, 0.5, true);
+                            bossHealth -= 2;
+                            const healthPct = Math.max(0, (bossHealth / maxBossHealth) * 100);
+                            document.getElementById('boss-health-bar').style.width = healthPct + '%';
+                            scene.remove(lasers[j]);
+                            lasers.splice(j, 1);
+                            if (bossHealth <= 0) {
+                                spawnExplosion(boss.position, 3.0, true);
+                                scene.remove(boss);
+                                boss = null;
+                                sectorComplete();
+                            }
+                            break;
+                        }
+                    }
+                    for (let j = photonProjectiles.length - 1; j >= 0; j--) {
+                        if (boss && boss.position.distanceTo(photonProjectiles[j].position) < (5.8 * boss.scale.x)) {
+                            playSound('explosion');
+                            spawnExplosion(photonProjectiles[j].position, 2.1, true);
+                            shakeIntensity = Math.min(0.4, shakeIntensity + 0.22);
+                            bossHealth -= 45;
+                            const healthPct = Math.max(0, (bossHealth / maxBossHealth) * 100);
+                            document.getElementById('boss-health-bar').style.width = healthPct + '%';
+                            scene.remove(photonProjectiles[j]);
+                            photonProjectiles.splice(j, 1);
+                            if (bossHealth <= 0) {
+                                spawnExplosion(boss.position, 3.2, true);
+                                scene.remove(boss);
+                                boss = null;
+                                sectorComplete();
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                for (let i = enemyLasers.length - 1; i >= 0; i--) {
+                    const enemyBolt = enemyLasers[i];
+                    if (enemyBolt.userData.velocity) enemyBolt.position.add(enemyBolt.userData.velocity);
+                    if (enemyBolt.position.distanceTo(playerGroup.position) < 1.05) {
+                        playSound('explosion');
+                        spawnExplosion(playerGroup.position, 0.75, true);
+                        if (damageCooldown <= 0) {
+                            triggerDamageFeedback(0.2);
+                            shields -= 7;
+                            updateShieldHUD();
+                            damageCooldown = 24;
+                        }
+                        scene.remove(enemyBolt);
+                        enemyLasers.splice(i, 1);
+                        if (shields <= 0) endGame();
+                        continue;
+                    }
+                    if (enemyBolt.position.z > 15 || Math.abs(enemyBolt.position.x) > 35 || Math.abs(enemyBolt.position.y) > 35) {
+                        scene.remove(enemyBolt);
+                        enemyLasers.splice(i, 1);
+                    }
+                }
+
+                for (let i = lasers.length - 1; i >= 0; i--) {
+                    lasers[i].position.z -= 2.5;
+                    if (lasers[i].position.z < -120) {
+                        scene.remove(lasers[i]);
+                        lasers.splice(i, 1);
+                    }
+                }
+                for (let i = photonProjectiles.length - 1; i >= 0; i--) {
+                    const torp = photonProjectiles[i];
+                    torp.position.z -= 2.1;
+                    torp.rotation.z += 0.15;
+
+                    if (!bossActive && jumpToWarpTimer <= 0) {
+                        let detonated = false;
+                        for (let mIdx = meteors.length - 1; mIdx >= 0; mIdx--) {
+                            const targetM = meteors[mIdx];
+                            if (torp.position.distanceTo(targetM.position) < (0.85 + targetM.userData.radius)) {
+                                const blastCenter = torp.position.clone();
+                                playSound('explosion');
+                                spawnExplosion(blastCenter, 2.2, true);
+                                shakeIntensity = Math.min(0.35, shakeIntensity + 0.16);
+
+                                for (let k = meteors.length - 1; k >= 0; k--) {
+                                    if (meteors[k].position.distanceTo(blastCenter) <= 2.5) {
+                                        score += meteors[k].userData.points + 50;
+                                        spawnExplosion(meteors[k].position, meteors[k].userData.radius * 1.2, true);
+                                        scene.remove(meteors[k]);
+                                        meteors.splice(k, 1);
+                                    }
+                                }
+                                scene.remove(torp);
+                                photonProjectiles.splice(i, 1);
+                                detonated = true;
+                                break;
+                            }
+                        }
+                        if (detonated) continue;
+                    }
+
+                    if (torp.position.z < -130) {
+                        scene.remove(torp);
+                        photonProjectiles.splice(i, 1);
+                    }
+                }
+
+                if (!bossActive && jumpToWarpTimer <= 0) {
+                    // Outer-wall flyby asteroids
+                    for (let i = outerMeteors.length - 1; i >= 0; i--) {
+                        const om = outerMeteors[i];
+                        om.position.z += (speed + 0.2) * om.userData.speedMult;
+                        om.rotation.x += om.userData.rotSpeed.x;
+                        om.rotation.y += om.userData.rotSpeed.y;
+                        om.rotation.z += om.userData.rotSpeed.z;
+                        if (om.position.z > 16) {
+                            scene.remove(om);
+                            outerMeteors.splice(i, 1);
+                        }
+                    }
+
+                    // Central flight corridor asteroids
+                    for (let i = meteors.length - 1; i >= 0; i--) {
+                        const m = meteors[i];
+                        const ud = m.userData;
+                        m.position.z += speed + ud.speedBonus;
+                        m.position.x += ud.driftX;
+                        m.position.y += ud.driftY;
+
+                        if (m.position.x > 3.2 || m.position.x < -3.2) ud.driftX *= -1;
+                        if (m.position.y > 1.9 || m.position.y < -1.9) ud.driftY *= -1;
+
+                        m.rotation.x += ud.rotSpeed.x;
+                        m.rotation.y += ud.rotSpeed.y;
+                        m.rotation.z += ud.rotSpeed.z;
+
+                        const shipHitThreshold = 0.55 + ud.radius * 0.72;
+                        if (m.position.distanceTo(playerGroup.position) < shipHitThreshold) {
+                            playSound('explosion');
+                            spawnExplosion(m.position, ud.radius * 1.2, true);
+                            if (damageCooldown <= 0) {
+                                triggerDamageFeedback(ud.tier === 'large' ? 0.3 : 0.2);
+                                shields -= ud.damage;
+                                updateShieldHUD();
+                                damageCooldown = 28;
+                            }
+                            scene.remove(m);
+                            meteors.splice(i, 1);
+                            if (shields <= 0) endGame();
+                            continue;
+                        }
+
+                        let destroyed = false;
+                        const phaserHitRadius = 0.6 + ud.radius * 0.95;
+                        for (let j = lasers.length - 1; j >= 0; j--) {
+                            if (m.position.distanceTo(lasers[j].position) < phaserHitRadius) {
+                                ud.hp -= 1;
+                                const impactPos = lasers[j].position.clone();
+                                scene.remove(lasers[j]);
+                                lasers.splice(j, 1);
+
+                                if (ud.hp <= 0) {
+                                    playSound('explosion');
+                                    spawnExplosion(m.position, ud.radius * 1.35, ud.tier === 'large');
+                                    score += ud.points;
+
+                                    if (ud.tier === 'large' && m.position.z < -30) {
+                                        spawnMeteor('small', m.position.x - 0.85, m.position.y + 0.35, m.position.z);
+                                        spawnMeteor('small', m.position.x + 0.85, m.position.y - 0.35, m.position.z);
+                                    }
+
+                                    scene.remove(m);
+                                    meteors.splice(i, 1);
+                                    destroyed = true;
+                                } else {
+                                    playSound('rock-hit');
+                                    spawnExplosion(impactPos, 0.4, false);
+                                    m.material.emissive.setHex(0xff6600);
+                                    m.material.emissiveIntensity = 0.6;
+                                    setTimeout(() => {
+                                        if (m && m.material) {
+                                            m.material.emissive.setHex(0x000000);
+                                            m.material.emissiveIntensity = 0;
+                                        }
+                                    }, 85);
+                                }
+                                break;
+                            }
+                        }
+                        if (destroyed) continue;
+                        if (m.position.z > 10) {
+                            scene.remove(m);
+                            meteors.splice(i, 1);
+                        }
+                    }
+
+                    for (let i = torpedoPickups.length - 1; i >= 0; i--) {
+                        const tp = torpedoPickups[i];
+                        tp.position.z += speed + 0.05;
+                        tp.rotation.y += 0.03;
+                        if (tp.position.distanceTo(playerGroup.position) < 1.8) {
+                            playSound('torpedo-pickup');
+                            photonTorpedoes += 1;
+                            updateTorpedoHUD();
+                            scene.remove(tp);
+                            torpedoPickups.splice(i, 1);
+                            continue;
+                        }
+                        if (tp.position.z > 10) {
+                            scene.remove(tp);
+                            torpedoPickups.splice(i, 1);
+                        }
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        function startGame() {
+            const menuScreen = document.getElementById('menu-screen');
+            if (menuScreen) menuScreen.classList.add('hidden');
+
+            initAudio();
+            activeTouchId = null;
+            firingTouchId = null;
+            score = 0;
+            shields = 100;
+            photonTorpedoes = 0;
+            warpFactor = 1;
+            missionProgress = 0;
+            bossActive = false;
+            jumpToWarpTimer = 0;
+            sectorCount = 1;
+            maxBossHealth = 300;
+            damageCooldown = 0;
+            meteorSpawnAccumulator = 0;
+            outerSpawnAccumulator = 0;
+
+            const positions = starGeo.attributes.position.array;
+            for (let i = 0; i < starOriginalPositions.length; i++) {
+                positions[i] = starOriginalPositions[i];
+            }
+            starGeo.attributes.position.needsUpdate = true;
+            starField.visible = true;
+            pointStarField.visible = false;
+
+            updateTorpedoHUD();
+            if (boss) { scene.remove(boss); boss = null; }
+            enemyLasers.forEach(bl => scene.remove(bl)); enemyLasers = [];
+            targetX = 0; targetY = 0;
+            playerGroup.position.set(0, 0, 0);
+            shieldStream.visible = true;
+            updateShieldHUD();
+            document.getElementById('mission-bar').style.width = '0%';
+            document.getElementById('sector-badge').innerText = "SECTOR 01";
+            document.getElementById('objective-title').innerText = "MISSION OBJECTIVE";
+            document.getElementById('objective-title').classList.remove('text-[#ff3333]');
+            document.getElementById('objective-title').classList.add('text-[#ffcc66]');
+            document.getElementById('belt-status-pill').innerText = "BELT";
+            document.getElementById('belt-status-pill').classList.remove('lcars-blink');
+            document.getElementById('warp-val').innerText = "ENGAGED";
+            document.getElementById('warp-val').classList.remove('text-[#ff3333]');
+            document.getElementById('warp-val').classList.add('text-[#ffaa00]');
+            document.getElementById('boss-hud').classList.add('hidden');
+            document.getElementById('final-score-container').classList.add('hidden');
+            meteors.forEach(m => scene.remove(m)); meteors = [];
+            torpedoPickups.forEach(tp => scene.remove(tp)); torpedoPickups = [];
+            lasers.forEach(l => scene.remove(l)); lasers = [];
+            photonProjectiles.forEach(pp => scene.remove(pp)); photonProjectiles = [];
+            explosions.forEach(ex => scene.remove(ex.group)); explosions = [];
+
+            gameActive = true;
+            seedInitialOuterBelt();
+            spawnMeteor();
+        }
+
+        function endGame() {
+            gameActive = false;
+            activeTouchId = null;
+            firingTouchId = null;
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-score-container').classList.remove('hidden');
+            startBtnEl.innerText = 'RE-ENGAGE WARP DRIVE';
+            document.getElementById('menu-screen').classList.remove('hidden');
+        }
+
+        let lastStartTrigger = 0;
+        function handleStartButton(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const now = Date.now();
+            if (now - lastStartTrigger < 300) return;
+            lastStartTrigger = now;
+            startGame();
+        }
+
+        startBtnEl.addEventListener('pointerup', handleStartButton);
+        startBtnEl.addEventListener('touchend', handleStartButton, { passive: false });
+        startBtnEl.addEventListener('click', handleStartButton);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        });
+
+        window.onload = function () {
+            animate();
+        };
+    </script>
+</body>
+</html>
